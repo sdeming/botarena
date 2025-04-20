@@ -96,7 +96,7 @@ Robots are programmed in **RASM**, a stack-based assembly language designed for 
 
   - Max 10-level call stack
   - 100 cycles per turn, 1000 turns max (configurable)
-  - Arena: 1.0 x 1.0 units (20x20 grid)
+  - Arena: 1.0 x 1.0 units (20x20 grid, 800x800 pixels)
   - Up to 4 robots per match
   - See [LANGUAGE.md](LANGUAGE.md) for full details
 
@@ -108,7 +108,7 @@ Robots are programmed in **RASM**, a stack-based assembly language designed for 
 
 ## Arena & Game Constraints
 
-- **Arena Size:** 1.0 x 1.0 units (20x20 grid)
+- **Arena Size:** 1.0 x 1.0 units (20x20 grid, 800x800 pixels)
 - **Obstacles:** Randomly placed (1% density by default) -- currently turned off
 - **Turns:** 1000 max (default, configurable)
 - **Cycles per Turn:** 100
