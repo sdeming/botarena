@@ -1,0 +1,13 @@
+.const DRIVE_ID 1
+.const DRIVE_DELAY 800      ; Delay counter for driving
+.const TURN_DELAY 20        ; Delay counter for turning
+
+select DRIVE_ID             ; Select drive component
+
+start:
+    drive 2.0               ; Move forward
+    sleep DRIVE_DELAY       ; Wait DRIVE_DELAY cycles
+    drive 0.0               ; Stop
+    rotate 90.0             ; Turn 90 degrees
+    sleep TURN_DELAY        ; Wait TURN_DELAY cycles
+    jmp start               ; Repeat
