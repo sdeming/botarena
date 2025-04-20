@@ -1,21 +1,22 @@
 use crate::config; // <-- Import config
 use crate::utils;
-use rand::Rng; // Import the Rng trait
-use raylib::prelude::*; // <-- Import utils
+use macroquad::prelude::{Vec2, Color};
+use macroquad::color::colors::*;
+use rand::prelude::*;
 
 // Represents a single particle
 #[derive(Debug, Clone)]
-struct Particle {
-    position: Vector2,
-    prev_position: Vector2,
-    velocity: Vector2,
-    color: Color,
-    lifetime: f32, // Time remaining in seconds
-    initial_lifetime: f32,
+pub struct Particle {
+    pub position: Vec2,
+    pub prev_position: Vec2,
+    pub velocity: Vec2,
+    pub color: Color,
+    pub lifetime: f32, // Time remaining in seconds
+    pub initial_lifetime: f32,
 }
 
 impl Particle {
-    fn new(position: Vector2, velocity: Vector2, color: Color, lifetime: f32) -> Self {
+    fn new(position: Vec2, velocity: Vec2, color: Color, lifetime: f32) -> Self {
         Particle {
             position,
             prev_position: position,
@@ -33,7 +34,7 @@ impl Particle {
 
         // Fade out effect
         let fade_factor = (self.lifetime / self.initial_lifetime).max(0.0);
-        self.color.a = (fade_factor * 255.0) as u8;
+        self.color.a = fade_factor;
     }
 
     // Check if particle has expired
@@ -45,7 +46,7 @@ impl Particle {
 // Manages a collection of particles
 #[derive(Debug)]
 pub struct ParticleSystem {
-    particles: Vec<Particle>,
+    pub particles: Vec<Particle>,
     rng: rand::rngs::ThreadRng,
 }
 
@@ -69,7 +70,7 @@ impl ParticleSystem {
     // Spawns a burst of particles
     pub fn spawn_explosion(
         &mut self,
-        position: Vector2,
+        position: Vec2,
         base_color: Color,
         count: usize,
         max_speed: f32,
@@ -79,7 +80,7 @@ impl ParticleSystem {
             // Use r#gen for raw identifier
             let angle = self.rng.r#gen::<f32>() * std::f32::consts::TAU;
             let speed = self.rng.r#gen::<f32>() * max_speed;
-            let velocity = Vector2::new(angle.cos() * speed, angle.sin() * speed);
+            let velocity = Vec2::new(angle.cos() * speed, angle.sin() * speed);
             let particle_lifetime = lifetime * (0.5 + self.rng.r#gen::<f32>() * 0.5);
             let particle_color = base_color;
 
@@ -93,7 +94,7 @@ impl ParticleSystem {
     }
 
     /// Spawns a short, directional burst of particles for muzzle flash.
-    pub fn spawn_muzzle_flash(&mut self, position: Vector2, direction_degrees: f64) {
+    pub fn spawn_muzzle_flash(&mut self, position: Vec2, direction_degrees: f64) {
         let count = 5; // Small number of particles
         let lifetime = 0.15; // Very short life
         let base_speed = config::UNIT_SIZE as f32 * 8.0; // Moderate speed
@@ -109,10 +110,11 @@ impl ParticleSystem {
 
             // Speed variation
             let speed = base_speed * (0.7 + self.rng.r#gen::<f32>() * 0.6);
-            let velocity = Vector2::new(angle.cos() * speed, angle.sin() * speed);
+            let velocity = Vec2::new(angle.cos() * speed, angle.sin() * speed);
 
             // Color (e.g., white/yellow)
-            let color = Color::YELLOW.alpha(0.7); // <-- Use alpha()
+            let mut color = YELLOW;
+            color.a = 0.7;
 
             self.particles.push(Particle::new(
                 position,
@@ -130,49 +132,25 @@ impl ParticleSystem {
             p.is_alive()
         });
     }
-
-    // Draw all active particles, interpolating positions
-    pub fn draw(
-        &self,
-        d: &mut RaylibDrawHandle,
-        screen_width: i32,
-        screen_height: i32,
-        alpha: f32,
-    ) {
-        for particle in &self.particles {
-            // Interpolate position using utils
-            let interp_pos_world = Vector2 {
-                x: utils::lerp(particle.prev_position.x, particle.position.x, alpha),
-                y: utils::lerp(particle.prev_position.y, particle.position.y, alpha),
-            };
-
-            // Convert interpolated world coordinates to screen coordinates
-            let screen_pos = Vector2 {
-                x: (interp_pos_world.x as f64 * screen_width as f64) as f32,
-                y: (interp_pos_world.y as f64 * screen_height as f64) as f32,
-            };
-
-            d.draw_circle_v(screen_pos, 2.0, particle.color);
-        }
-    }
 }
 
 // Test module for particles
 #[cfg(test)]
 mod tests {
-    use super::*; // Import items from outer module
-    use raylib::prelude::Color;
+    use super::*;
+    use macroquad::color::{Color, RED, BLUE};
+    use macroquad::prelude::Vec2;
 
     #[test]
     fn test_particle_new_and_lifetime() {
-        let p = Particle::new(Vector2::zero(), Vector2::zero(), Color::RED, 1.0);
+        let p = Particle::new(Vec2::new(0.0, 0.0), Vec2::new(0.0, 0.0), RED, 1.0);
         assert!(p.is_alive());
         assert_eq!(p.lifetime, 1.0);
     }
 
     #[test]
     fn test_particle_update_lifetime() {
-        let mut p = Particle::new(Vector2::zero(), Vector2::zero(), Color::RED, 1.0);
+        let mut p = Particle::new(Vec2::new(0.0, 0.0), Vec2::new(0.0, 0.0), RED, 1.0);
         p.update(0.6);
         assert!(p.is_alive());
         assert!((p.lifetime - 0.4).abs() < f32::EPSILON);
@@ -183,7 +161,7 @@ mod tests {
 
     #[test]
     fn test_particle_update_position() {
-        let mut p = Particle::new(Vector2::zero(), Vector2::new(10.0, -5.0), Color::RED, 1.0);
+        let mut p = Particle::new(Vec2::new(0.0, 0.0), Vec2::new(10.0, -5.0), RED, 1.0);
         p.update(0.1);
         assert!((p.position.x - 1.0).abs() < f32::EPSILON);
         assert!((p.position.y - -0.5).abs() < f32::EPSILON);
@@ -191,14 +169,14 @@ mod tests {
 
     #[test]
     fn test_particle_update_fade() {
-        let mut p = Particle::new(Vector2::zero(), Vector2::zero(), Color::RED, 2.0);
-        assert_eq!(p.color.a, 255);
+        let mut p = Particle::new(Vec2::new(0.0, 0.0), Vec2::new(0.0, 0.0), RED, 2.0);
+        assert!((p.color.a - 1.0).abs() < f32::EPSILON);
         p.update(1.0); // Half lifetime
-        assert_eq!(p.color.a, 127);
+        assert!((p.color.a - 0.5).abs() < f32::EPSILON);
         p.update(0.5); // 3/4 lifetime
-        assert_eq!(p.color.a, 63);
+        assert!((p.color.a - 0.25).abs() < f32::EPSILON);
         p.update(1.0); // Past lifetime
-        assert_eq!(p.color.a, 0);
+        assert!((p.color.a - 0.0).abs() < f32::EPSILON);
     }
 
     #[test]
@@ -210,23 +188,23 @@ mod tests {
     #[test]
     fn test_particle_system_spawn_explosion() {
         let mut ps = ParticleSystem::new();
-        ps.spawn_explosion(Vector2::zero(), Color::BLUE, 10, 100.0, 1.0);
+        ps.spawn_explosion(Vec2::new(0.0, 0.0), BLUE, 10, 100.0, 1.0);
         assert_eq!(ps.particles.len(), 10);
         // Check a property of one particle (e.g., color)
-        assert_eq!(ps.particles[0].color, Color::BLUE);
+        assert_eq!(ps.particles[0].color, BLUE);
     }
 
     #[test]
     fn test_particle_system_update() {
         let mut ps = ParticleSystem::new();
         // Spawn particles with short lifetime
-        ps.spawn_explosion(Vector2::zero(), Color::BLUE, 5, 100.0, 0.1);
+        ps.spawn_explosion(Vec2::new(0.0, 0.0), BLUE, 5, 100.0, 0.1);
         assert_eq!(ps.particles.len(), 5);
 
         ps.update(0.05); // Update, but not enough to kill
         assert_eq!(ps.particles.len(), 5);
         // Check movement (at least one particle should have moved)
-        assert!(ps.particles[0].position != Vector2::zero());
+        assert!(ps.particles[0].position != Vec2::new(0.0, 0.0));
 
         ps.update(0.2); // Update enough to kill all particles (max lifetime is ~0.15)
         assert!(ps.particles.is_empty());

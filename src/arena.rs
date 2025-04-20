@@ -3,9 +3,10 @@ use crate::config::*;
 use crate::particles::ParticleSystem;
 use crate::robot::{Robot, RobotStatus};
 use crate::types::*;
-use rand::Rng;
-use raylib::prelude::{Color, Vector2};
+use macroquad::prelude::{Vec2, Color, SKYBLUE, YELLOW, ORANGE};
+use ::rand::prelude::*;
 use std::f64::INFINITY;
+use macroquad::prelude::*;
 
 // Represents an obstacle in the arena
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -44,7 +45,7 @@ impl Arena {
 
     // Places obstacles randomly based on configured density
     pub fn place_obstacles(&mut self) {
-        let mut rng = rand::thread_rng();
+        let mut rng = thread_rng();
         let total_cells = self.grid_width * self.grid_height;
         let num_obstacles = (total_cells as f32 * OBSTACLE_DENSITY).floor() as u32;
 
@@ -173,10 +174,10 @@ impl Arena {
                         current_pos.y,
                         step + 1
                     );
-                    let hit_position = Vector2::new(current_pos.x as f32, current_pos.y as f32);
+                    let hit_position = Vec2::new(current_pos.x as f32, current_pos.y as f32);
                     particle_system.spawn_explosion(
                         hit_position,
-                        Color::CYAN,
+                        SKYBLUE,
                         60,
                         config::UNIT_SIZE as f32 * 5.0,
                         0.6,
@@ -194,10 +195,10 @@ impl Arena {
                         current_pos.y,
                         step + 1
                     );
-                    let hit_position = Vector2::new(current_pos.x as f32, current_pos.y as f32);
+                    let hit_position = Vec2::new(current_pos.x as f32, current_pos.y as f32);
                     particle_system.spawn_explosion(
                         hit_position,
-                        Color::YELLOW,
+                        YELLOW,
                         50,
                         config::UNIT_SIZE as f32 * 4.0,
                         0.5,
@@ -224,12 +225,12 @@ impl Arena {
                             current_pos.y,
                             step + 1
                         );
-                        let hit_position = Vector2::new(current_pos.x as f32, current_pos.y as f32);
+                        let hit_position = Vec2::new(current_pos.x as f32, current_pos.y as f32);
                         let particle_count = (proj_power * 75.0 + 20.0) as usize;
                         let particle_lifetime = 0.6 + proj_power * 0.6;
                         particle_system.spawn_explosion(
                             hit_position,
-                            Color::ORANGE,
+                            ORANGE,
                             particle_count,
                             config::UNIT_SIZE as f32 * 6.0,
                             particle_lifetime as f32,
