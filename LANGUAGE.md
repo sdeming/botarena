@@ -205,7 +205,7 @@ These provide information about the robot's current state:
 | `@power` | Current energy/power level | Read-only |
 | `@posx` / `@pos_x` | Robot's X coordinate | Read-only |
 | `@posy` / `@pos_y` | Robot's Y coordinate | Read-only |
-| `@component` | ID of currently selected component | Read/Write |
+| `@component` | ID of currently selected component | Read-only (set only by `select`/`deselect` instructions) |
 
 ### Component Status Registers
 These provide information about the currently selected component:
@@ -1207,3 +1207,5 @@ loop:
 The Bot Arena Assembly Language provides a powerful yet approachable means of programming battle robots. By understanding the VM's stack-based nature, mastering component selection and control, and organizing your code effectively, you can create sophisticated robot behaviors even with this minimal instruction set.
 
 For additional examples and techniques, refer to the sample programs included with Bot Arena or study successful bot programs from other users.
+
+- **Note:** The `@component` register is read-only from user code. It can only be changed by the `select` and `deselect` instructions, not by `mov` or other register operations.
