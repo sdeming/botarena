@@ -87,6 +87,7 @@ pub enum Instruction {
     // Misc
     Nop,
     Dbg(Operand),
+    Sleep(Operand),
 }
 
 impl Instruction {
@@ -148,6 +149,12 @@ impl Instruction {
 
             // 1 Cycles
             Scan => 1,
+
+            // 1 Cycles
+            Sleep(op) => {
+                // Try to get the value from the operand, default to 1 if invalid
+                op.get_value(vm_state).map(|v| v.max(1.0) as u32).unwrap_or(1)
+            },
         }
     }
 }

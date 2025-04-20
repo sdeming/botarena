@@ -18,7 +18,7 @@ impl MiscellaneousOperations {
 
 impl InstructionProcessor for MiscellaneousOperations {
     fn can_process(&self, instruction: &Instruction) -> bool {
-        matches!(instruction, Instruction::Nop | Instruction::Dbg(_))
+        matches!(instruction, Instruction::Nop | Instruction::Dbg(_) | Instruction::Sleep(_))
     }
 
     fn process(
@@ -50,6 +50,13 @@ impl InstructionProcessor for MiscellaneousOperations {
 
                 // Advance IP and return
                 robot.vm_state.advance_ip();
+                Ok(())
+            }
+            Instruction::Sleep(op) => {
+                let cycles = op.get_value(&robot.vm_state)?.max(1.0) as u32;
+                // Set the remaining cycles for this instruction (minus one for the current cycle)
+                robot.vm_state.instruction_cycles_remaining = cycles - 1;
+                // Only advance IP after sleep completes (handled by VM cycle logic)
                 Ok(())
             }
             _ => Err(VMFault::InvalidInstruction),
@@ -85,6 +92,7 @@ mod tests {
         // Should process miscellaneous operations
         assert!(processor.can_process(&Instruction::Nop));
         assert!(processor.can_process(&Instruction::Dbg(Operand::Value(1.0))));
+        assert!(processor.can_process(&Instruction::Sleep(Operand::Value(1.0))));
 
         // Should not process other operations
         assert!(!processor.can_process(&Instruction::Push(Operand::Value(1.0))));
@@ -160,6 +168,42 @@ mod tests {
         assert_eq!(robot.vm_state.ip, initial_ip + 1);
 
         // Command queue should still be empty
+        assert_eq!(command_queue.len(), 0);
+    }
+
+    #[test]
+    fn test_sleep_instruction() {
+        let (mut robot, arena, mut command_queue) = setup();
+        let processor = MiscellaneousOperations::new();
+        let all_robots = vec![];
+
+        // Get the current IP
+        let initial_ip = robot.vm_state.ip;
+
+        // Execute Sleep instruction with a constant value
+        let sleep = Instruction::Sleep(Operand::Value(3.0));
+        let result = processor.process(&mut robot, &all_robots, &arena, &sleep, &mut command_queue);
+
+        // Sleep should succeed
+        assert!(result.is_ok());
+
+        // After processing, instruction_cycles_remaining should be 2 (3-1)
+        assert_eq!(robot.vm_state.instruction_cycles_remaining, 2);
+        // IP should NOT have advanced yet
+        assert_eq!(robot.vm_state.ip, initial_ip);
+
+        // Simulate VM cycles: decrement instruction_cycles_remaining until 0
+        while robot.vm_state.instruction_cycles_remaining > 0 {
+            robot.vm_state.instruction_cycles_remaining -= 1;
+            // IP should still not advance
+            assert_eq!(robot.vm_state.ip, initial_ip);
+        }
+
+        // After sleep completes, the VM would advance the IP
+        robot.vm_state.advance_ip();
+        assert_eq!(robot.vm_state.ip, initial_ip + 1);
+
+        // Command queue should still be empty (Sleep only waits, doesn't queue commands)
         assert_eq!(command_queue.len(), 0);
     }
 

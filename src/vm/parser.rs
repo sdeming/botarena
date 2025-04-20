@@ -777,6 +777,17 @@ pub fn parse_assembly(
                     })
                 }
             }
+            "sleep" => {
+                if parts.len() > 1 {
+                    let op = parse_operand(parts.get(1), &constants, line_num)?;
+                    Ok(Instruction::Sleep(op))
+                } else {
+                    Err(ParseError {
+                        line: line_num,
+                        message: "sleep requires a cycle count operand".to_string(),
+                    })
+                }
+            }
             _ => Err(ParseError {
                 line: line_num,
                 message: format!("Unknown instruction: {}", parts[0]),

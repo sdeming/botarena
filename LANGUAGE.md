@@ -500,6 +500,7 @@ flowchart LR
 |-------------|-------------|----------|---------------|--------|
 | `nop` | No operation | None | 1 | None (wastes a cycle) |
 | `dbg <operand>` | Print debug value | Value or register | 1 | Outputs value to console |
+| `sleep <cycles>` | Pause execution for the given number of cycles | Value, register, or constant | cycles | Pauses execution for the specified number of cycles |
 
 ## Constants
 
@@ -607,28 +608,21 @@ This program makes the robot move in a square pattern:
 
 ```asm
 .const DRIVE_ID 1
-.const SIDE_DELAY 20    ; Number of cycles to move forward
-.const TURN_DELAY 10    ; Number of cycles to turn
+.const DRIVE_DELAY 800      ; Delay counter for driving
+.const TURN_DELAY 20        ; Delay counter for turning
 
-mov @d0 0.0         ; Start at 0 degrees
-select DRIVE_ID     ; Select drive component
+select DRIVE_ID             ; Select drive component
 
-loop_start:
-    drive 0.5           ; Move forward
-    mov @c SIDE_DELAY   ; Set counter for forward movement
-move_wait:
-    nop
-    loop move_wait      ; Wait SIDE_DELAY cycles
-    drive 0.0           ; Stop
-    rotate 90.0         ; Turn 90 degrees
-    mov @c TURN_DELAY   ; Set counter for turning
-turn_wait:
-    nop
-    loop turn_wait      ; Wait TURN_DELAY cycles
-    add @d0 90.0        ; Update direction
-    mod @d0 360.0       ; Keep direction in [0,360)
-    jmp loop_start      ; Repeat
+start:
+    drive 2.0               ; Move forward
+    sleep DRIVE_DELAY       ; Wait DRIVE_DELAY cycles
+    drive 0.0               ; Stop
+    rotate 90.0             ; Turn 90 degrees
+    sleep TURN_DELAY        ; Wait TURN_DELAY cycles
+    jmp start               ; Repeat
 ```
+
+> **Note:** The `sleep` instruction is the preferred way to pause execution for a number of cycles. It replaces manual delay loops using `@c` and `loop`.
 
 ### Memory-Based Grid Navigation
 
@@ -675,10 +669,7 @@ start:
         drive 0.5
         
         ; Wait for movement to complete
-        mov @c 10
-        wait_loop:
-            nop
-            loop wait_loop
+        sleep 10
         
         ; Update position and scan again
         call update_position
@@ -744,14 +735,7 @@ scan_surroundings:
         rotate @d6
         
         ; Wait for rotation
-        mov @d7 5
-        wait_rotate:
-            push @d7
-            push 1.0
-            sub
-            pop @d7
-            cmp @d7 0.0
-            jnz wait_rotate
+        sleep 5
         
         ; Scan for obstacles
         scan
@@ -916,10 +900,7 @@ no_target:
     push 1.0
     add
     pop @d0
-    mov @c 3
-wait_loop:
-    nop
-    loop wait_loop
+    sleep 3
     jmp main_loop
 ```
 
@@ -943,9 +924,7 @@ main_loop:
     call zigzag
     call scan_and_fire
     mov @c 5
-wait_loop:
-    nop
-    loop wait_loop
+    sleep 5
     jmp main_loop
 
 zigzag:
