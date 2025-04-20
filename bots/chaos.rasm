@@ -1,0 +1,42 @@
+; wander.rasm - Move forward until close to obstacle, then turn 90 degrees randomly left or right, back up slightly, and wait for next cycle.
+
+.const DRIVE_COMP 1
+.const TURRET_COMP 2
+.const SAFE_DISTANCE 0.05  ; Distance from center before turning (robot radius is ~0.025)
+.const TURN_ANGLE 90.0
+.const HALF 0.9
+.const BACKUP_SPEED -0.2  ; Small negative speed to move away from obstacle
+
+main_loop:
+    ; --- rotate and fire turret --
+    select TURRET_COMP
+    rotate 45
+    fire 1.0
+
+    ; --- Check Forward Distance ---
+    select DRIVE_COMP          ; Make sure drive is selected for rotation/drive commands
+    cmp @forward_distance SAFE_DISTANCE
+    jg drive_forward           ; If distance > SAFE_DISTANCE, jump to drive
+
+turn_logic:
+    ; --- Blocked: Decide Turn Direction ---
+    cmp @rand HALF
+    jge turn_right             ; If rand >= 0.5, jump to turn_right
+
+turn_left:
+    dbg -1
+    dbg TURN_ANGLE
+    mul TURN_ANGLE -1.0
+    dbg @result
+    rotate @result            ; Request rotate left
+    drive BACKUP_SPEED        ; Request back up slightly
+
+turn_right:
+    mov @d1 TURN_ANGLE        ; @d1 = 90.0
+    rotate @d1                ; Request rotate right
+    drive BACKUP_SPEED        ; Request back up slightly
+
+drive_forward:
+    ; --- Clear Path: Drive Forward ---
+    drive 1.0                 ; Set forward velocity
+    jmp main_loop             ; Continue driving/checking

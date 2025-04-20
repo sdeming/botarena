@@ -1,0 +1,142 @@
+# Bot Arena
+
+A programmable robot battle simulator written in Rust. Program your own battle bots in a custom stack-based assembly language (RASM), then watch them fight in a dynamic, obstacle-filled arena! Supports up to 4 robots per match, real-time rendering, and detailed logging for debugging and analysis.
+
+This game is heavily inspired by [CRobots by Tom Poindexter](https://tpoindex.github.io/crobots/)
+
+It was written with massive amounts of AI assistance using both RooCode and Cursor combined with various models as a fun little experiment that might have gotten a little out of hand.
+
+There are likely many bugs and other oddities that only an AI could explain. Or attempt to explain while seretly deleting random files for gits and shiggles. To be honest, it was a very frustrating but fulfilling experience.
+
+---
+
+## Features
+
+- **Custom Assembly Language (RASM):** Write stack-based programs to control your robot's movement, scanning, and combat.
+- **Real-Time Simulation:** Visualize battles in a 20x20 grid arena with obstacles, projectiles, and particle effects.
+- **Flexible Logging:** Adjustable log levels and topic-based debug filtering for deep inspection of robot behavior.
+- **Deterministic VM:** Each robot runs in its own virtual machine, cycle-by-cycle, with strict instruction costs and resource limits.
+- **Extensive Documentation:** Full language reference in [LANGUAGE.md](LANGUAGE.md), with example bots and programming tips.
+- **Robust Testing:** 179+ unit and integration tests ensure correctness and stability.
+
+---
+
+## Quick Start
+
+### Prerequisites
+
+- Rust (edition 2024, recommended latest stable)
+- [Raylib](https://www.raylib.com/) (C library, required for rendering)
+
+### Build & Run
+
+```sh
+# Clone the repo
+git clone https://github.com/yourusername/botarena.git
+cd botarena
+
+# Build and run with two example robots
+cargo run -- bots/chaos.rasm bots/jojo.rasm
+```
+
+#### Command-Line Options
+
+```
+USAGE:
+    botarena [OPTIONS] <robot_files>...
+
+ARGS:
+    <robot_files>...    Robot assembly file(s) to load (1 to 4)
+
+OPTIONS:
+    --turns <turns>         Maximum number of turns to simulate (default: 1000)
+    --debug-filter <topics> Debug filter (comma-separated, e.g. "vm,robot,drive,weapon,scan,instructions")
+    --log-level <level>     Log level: off, error, warn, info, debug, trace (default: info)
+```
+
+Example:
+
+```sh
+cargo run -- bots/chaos.rasm bots/jojo.rasm --turns=500 --log-level=debug --debug-filter=vm,robot
+```
+
+---
+
+## Logging & Debugging
+
+- **Log Levels:** Set with `--log-level` (off, error, warn, info, debug, trace).
+- **Debug Filters:** Use `--debug-filter` to restrict debug output to specific topics (e.g., `vm`, `robot`, `drive`, `weapon`, `scan`, `instructions`).
+- **Log Output:** All logs are printed to stdout. To capture logs for analysis:
+
+```sh
+cargo run -- bots/chaos.rasm bots/jojo.rasm --log-level=debug > debug.log 2>&1
+```
+
+- **Log Format:**
+  - Timestamps, log level, robot/turn/cycle context, topic, and message.
+  - Example: `[12:34:56.789] DEBUG [R01][T005][C10] vm: Executed instruction: push 1.0`
+
+---
+
+## Writing Robots (RASM)
+
+Robots are programmed in **RASM**, a stack-based assembly language designed for Bot Arena. Each robot runs in its own VM, controlling movement, scanning, and combat via instructions.
+
+- **Key Features:**
+
+  - 19 general-purpose registers (`@d0`–`@d18`), status and component registers
+  - 1024 memory cells, stack operations, subroutines, and control flow
+  - Direct control of drive and turret components (move, rotate, scan, fire)
+  - Strict instruction cycle costs (e.g., `fire` = 3 cycles, `drive` = 2 cycles)
+  - Constants, labels, and expressions for program organization
+
+- **Constraints:**
+
+  - Max 10-level call stack
+  - 100 cycles per turn, 1000 turns max (configurable)
+  - Arena: 1.0 x 1.0 units (20x20 grid)
+  - Up to 4 robots per match
+  - See [LANGUAGE.md](LANGUAGE.md) for full details
+
+- **Getting Started:**
+  - See [LANGUAGE.md](LANGUAGE.md) for a complete guide, including example programs, instruction set, and best practices.
+  - Example bot files: `bots/chaos.rasm`, `bots/jojo.rasm`
+
+---
+
+## Arena & Game Constraints
+
+- **Arena Size:** 1.0 x 1.0 units (20x20 grid)
+- **Obstacles:** Randomly placed (1% density by default) -- currently turned off
+- **Turns:** 1000 max (default, configurable)
+- **Cycles per Turn:** 100
+- **Robot Health:** 100.0 (default)
+- **Robot Power:** 1.0 (regenerates at 0.01 per cycle)
+- **Drive/Turret Rotation:** 1.8° per cycle (180° per turn)
+- **Projectile Speed:** 0.2 units/cycle
+- **Scanner FOV:** 45° (±22.5°), range covers arena diagonal
+- **See [src/config.rs](src/config.rs) for all tunable parameters**
+
+---
+
+## License
+
+MIT License. See [LICENSE](LICENSE) for details.
+
+---
+
+## Documentation & Resources
+
+- [LANGUAGE.md](LANGUAGE.md): Full RASM language reference and programming guide
+- [src/config.rs](src/config.rs): Arena/game configuration
+- Example bots: `bots/`
+
+---
+
+If you happen to stumble across this and decide to take a stab at writing a bot or two (it's tough, but fun!), please
+consider opening a PR so I can include your bot.
+
+Or, if you decide decide to take on fixing or improving the code, please do so! There are a lot of things _wrong?_ with
+this code so I would love to see it improved.
+
+Happy bot battling!

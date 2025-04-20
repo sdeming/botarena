@@ -1,0 +1,129 @@
+; bots/jojo.rasm
+; Jojo: Random Waypoint Roamer & Aggressive Scanner
+
+.const DRIVE_ID 1
+.const TURRET_ID 2
+.const DRIVE_SPEED 2.0
+.const FIRE_POWER 1.0
+.const ARRIVAL_THRESHOLD 0.1
+.const WEAVE_STATE_INDEX 0
+.const WEAVING_RIGHT 1
+.const WEAVING_LEFT -1
+
+start:
+    mov @index WEAVE_STATE_INDEX
+    sto WEAVING_RIGHT
+    push DRIVE_SPEED
+    call set_drive_speed
+    push @rand
+    call set_drive_direction
+
+main_loop:
+    call scan_and_sweep
+    call drive_and_check_path
+    dbg @forward_distance
+    dbg @drive_direction
+    dbg @drive_velocity
+    dbg @target_distance
+    dbg @turret_direction
+    jmp main_loop
+
+; drive_and_check_path - Move forward until close to obstacle, then turn up to 90 degrees (randomly).
+drive_and_check_path:
+    push @d1 ; save the register on the stack
+
+dacp_check:
+    cmp @forward_distance ARRIVAL_THRESHOLD
+    jle dacp_turn
+    jmp dacp_weave
+
+dacp_turn:
+    cmp @rand 0.5
+    jl dacp_left_turn
+    jmp dacp_right_turn
+
+dacp_left_turn:
+    push -135.0
+    push @rand
+    mul
+    push 45.0
+    sub
+    call set_drive_direction
+    jmp dacp_ret
+
+dacp_right_turn:
+    push 135.0
+    push @rand
+    mul
+    push 45.0
+    add
+    call set_drive_direction
+    jmp dacp_ret
+
+dacp_weave:
+    mov @index WEAVE_STATE_INDEX
+    lod @d1                             ; load the weaving state from @index
+    mul @d1 @rand
+    mul @result 45.0
+    rotate @result                      ; apply the weave rotation
+    mul @d1 -1.0
+    mov @index WEAVE_STATE_INDEX
+    sto @d1
+    jmp dacp_ret
+
+dacp_ret:
+    push DRIVE_SPEED
+    call set_drive_speed
+    pop @d1 ; restore the register
+    ret
+
+; scan_and_sweep - Scan for enemies and fire if one is found, then sweep the turret towards the drive direction.
+scan_and_sweep:
+    push @d1 ; save the register on the stack
+
+sas_scan:
+    scan
+    cmp @target_distance 0.0
+    jnz sas_fire_and_follow
+    jmp sas_maybe_sweep
+
+sas_maybe_sweep:
+    cmp @turret_direction @drive_direction
+    jne sas_sweep
+    jmp sas_ret
+
+sas_sweep:
+    mov @d1 @component
+    sub @drive_direction @turret_direction
+    select TURRET_ID
+    rotate @result
+    select @d1
+    jmp sas_ret
+
+sas_fire_and_follow:
+    fire FIRE_POWER
+    sub @target_direction @drive_direction
+    rotate @result    
+    jmp sas_maybe_sweep
+
+sas_ret:
+    pop @d1 ; restore the register
+    ret
+
+set_drive_speed:
+    pop @result             ; fetch the speed param
+    push @component         ; save the current selected component
+    select DRIVE_ID         ; switch to the drive component
+    drive @result           ; set drive speed to the param that was passed
+    pop @result             ; restore the saved component
+    select @component       ; switch back to the saved component
+    ret
+
+set_drive_direction:
+    pop @result             ; fetch the direction param
+    push @component         ; save the current selected component
+    select DRIVE_ID         ; switch to the drive component
+    rotate @result          ; set drive direction to the param that was passed
+    pop @result             ; restore the saved component
+    select @component       ; switch back to the saved component
+    ret

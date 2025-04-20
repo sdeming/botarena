@@ -1,0 +1,16 @@
+[package]
+name = "botarena"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+raylib = "5.5"
+rand = "0.8"
+thiserror = "1.0"
+clap = { version = "4.5", features = ["derive"] }
+log = "0.4"
+env_logger = "0.11"
+chrono = "0.4"
+
+[dev-dependencies]
+assert_approx_eq = "1.1.0"
