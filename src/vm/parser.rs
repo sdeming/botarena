@@ -357,6 +357,8 @@ pub fn parse_assembly(
             continue;
         }
 
+        // Allow optional commas as argument separators
+        let instruction_part = instruction_part.replace(",", " ");
         let parts: Vec<_> = instruction_part.split_whitespace().collect();
         // parts cannot be empty here because instruction_part wasn't empty
 
@@ -1945,5 +1947,29 @@ mod tests {
             },
             _ => panic!("Expected Dbg instruction with register"),
         }
+    }
+
+    #[test]
+    fn test_comma_and_space_argument_separators() {
+        let source = r#"
+            mov @d1 4
+            mov @d2, 5
+            add @d1, @d2
+            add @d1 @d2
+            sub @d1, 1
+            sub @d1 1
+        "#;
+        let result = parse_assembly(source, None);
+        assert!(result.is_ok(), "Parser should accept both comma and space separators: {:?}", result.err());
+        let program = result.unwrap();
+        // There should be 6 instructions
+        assert_eq!(program.instructions.len(), 6);
+        // Check that the instructions are parsed as expected
+        assert!(matches!(program.instructions[0], Instruction::Mov(Register::D1, Operand::Value(4.0))));
+        assert!(matches!(program.instructions[1], Instruction::Mov(Register::D2, Operand::Value(5.0))));
+        assert!(matches!(program.instructions[2], Instruction::AddOp(Operand::Register(Register::D1), Operand::Register(Register::D2))));
+        assert!(matches!(program.instructions[3], Instruction::AddOp(Operand::Register(Register::D1), Operand::Register(Register::D2))));
+        assert!(matches!(program.instructions[4], Instruction::SubOp(Operand::Register(Register::D1), Operand::Value(1.0))));
+        assert!(matches!(program.instructions[5], Instruction::SubOp(Operand::Register(Register::D1), Operand::Value(1.0))));
     }
 }
