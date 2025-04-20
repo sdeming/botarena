@@ -27,6 +27,12 @@ RASM (the Bot Arena assembly language) uses a simple, flexible syntax designed f
   - Example:
     - `start:`
     - `loop: add @d1, 1`
+  - **Labels:**
+    - Labels end with a colon (`:`) and may be indented with spaces or tabs (i.e., leading whitespace is allowed).
+    - Labels do not have to start at position 0.
+    - Example:
+      - `start:`
+      - `    loop: add @d1, 1`  ; Indented label is valid
 
 - **Constants:**
   - Constants are defined with `.const` at the start of a line.
@@ -437,6 +443,7 @@ mov @d1 @result  ; Update @d1 with the result
 ; Clear bit 3 in register @d2 using XOR
 and @d2 4294967287  ; @d2 & ~8 (all bits 1 except bit 3) 
                     ; 11111111 11111111 11111111 11110111
+                    ; 0xFFFFFFF7 (hexadecimal)
 mov @d2 @result     ; Update @d2 with result
 
 ; Double a value using shift left
@@ -481,7 +488,7 @@ flowchart LR
 |-------------|-------------|----------|---------------|-------------------|--------|
 | `select <operand>` | Select component by ID | Component ID or register | 1 | None | `@component` = component ID |
 | `deselect` | Deselect current component | None | 1 | None | `@component` = 0 |
-| `rotate <operand>` | Request rotation for selected component | Angle delta (degrees) | 3 | Any | Component begins rotating |
+| `rotate <operand>` | Request rotation for selected component | Angle delta (degrees) | 3 | Any | Component begins rotating (applies to selected component) |
 | `drive <operand>` | Set drive velocity | Target velocity | 2 | Drive (ID 1) | Drive begins accelerating/decelerating |
 | `attack` | Perform melee attack | None | 5 | Turret (ID 2) | Initiates melee attack |
 | `fire <operand>` | Fire ranged weapon | Power level (0.0-1.0) | 3 | Turret (ID 2) | Fires projectile |
@@ -525,7 +532,7 @@ Expressions support:
 - Constants must be named with ALL_CAPS
 - Constants can only be defined once
 - Constant values must be valid floating-point numbers or expressions evaluating to numbers
-- The value is evaluated and substituted during parsing
+- The value is evaluated and substituted during parsing (constants are substituted at parse time, not runtime)
 - Expressions can only reference constants that were defined earlier in the code
 
 ### Built-in Constants
@@ -568,6 +575,8 @@ pop @d0     ; Pop result into @d0
 
 Robots have two main components, each with different capabilities:
 
+> **Warning:** If you attempt to use a component-specific instruction (like `drive`, `fire`, or `scan`) without first selecting the correct component, the instruction will have no effect or may cause an error.
+
 1. **Drive** (ID 1): Controls movement
    - `drive`: Set velocity
    - `rotate`: Change direction
@@ -598,66 +607,27 @@ This program makes the robot move in a square pattern:
 
 ```asm
 .const DRIVE_ID 1
-.const MOVE_DISTANCE 0.2
-.const TURN_ANGLE 90.0
+.const SIDE_DELAY 20    ; Number of cycles to move forward
+.const TURN_DELAY 10    ; Number of cycles to turn
 
-start:
-    ; Initialize registers
-    mov @d0 0.0    ; Movement state (0-3)
-    
-main_loop:
-    ; Select drive component
-    select DRIVE_ID
-    
-    ; Get current state
-    cmp @d0 0.0
-    jnz not_state_0
-    
-    ; State 0: Move forward
-    drive 0.5
-    
-    ; Check if we've moved MOVE_DISTANCE
-    cmp @drive_velocity @MOVE_DISTANCE
-    jl main_loop_continue
-    
-    ; Ready to turn, update state
-    mov @d0 1.0
-    jmp main_loop_continue
-    
-not_state_0:
-    cmp @d0 1.0
-    jnz not_state_1
-    
-    ; State 1: Stop and turn
-    drive 0.0
-    rotate TURN_ANGLE
-    
-    ; Update state
-    mov @d0 2.0
-    jmp main_loop_continue
-    
-not_state_1:
-    cmp @d0 2.0
-    jnz not_state_2
-    
-    ; State 2: Wait for rotation to complete
-    cmp @drive_direction 0.0
-    jnz main_loop_continue
-    
-    ; Rotation complete, update state
-    mov @d0 0.0
-    
-not_state_2:
-    ; Other states handled here
-    
-main_loop_continue:
-    ; Wait a few cycles
-    mov @c 5
-wait_loop:
+mov @d0 0.0         ; Start at 0 degrees
+select DRIVE_ID     ; Select drive component
+
+loop_start:
+    drive 0.5           ; Move forward
+    mov @c SIDE_DELAY   ; Set counter for forward movement
+move_wait:
     nop
-    loop wait_loop
-    
-    jmp main_loop
+    loop move_wait      ; Wait SIDE_DELAY cycles
+    drive 0.0           ; Stop
+    rotate 90.0         ; Turn 90 degrees
+    mov @c TURN_DELAY   ; Set counter for turning
+turn_wait:
+    nop
+    loop turn_wait      ; Wait TURN_DELAY cycles
+    add @d0 90.0        ; Update direction
+    mod @d0 360.0       ; Keep direction in [0,360)
+    jmp loop_start      ; Repeat
 ```
 
 ### Memory-Based Grid Navigation
@@ -931,39 +901,25 @@ This program rotates the turret, scans for targets, and fires when a target is d
 .const DETECTION_RANGE 0.5
 
 start:
-    ; Initialize
     mov @d0 0.0     ; Scan counter
     
 main_loop:
-    ; Select turret
     select TURRET_ID
-    
-    ; Rotate turret continuously
     rotate ROTATION_SPEED
-    
-    ; Scan for targets
     scan
-    
-    ; Check if target detected (@target_distance is set by scan)
     cmp @target_distance @DETECTION_RANGE
     jg no_target     ; If @target_distance > DETECTION_RANGE, no target in range
-    
-    ; Target detected! Fire weapon
     fire MAX_WEAPON_POWER
-    
+
 no_target:
-    ; Increment scan counter
     push @d0
     push 1.0
     add
     pop @d0
-    
-    ; Wait a bit before next scan
     mov @c 3
 wait_loop:
     nop
     loop wait_loop
-    
     jmp main_loop
 ```
 
@@ -977,87 +933,51 @@ This program demonstrates using subroutines with `call` and `ret` instructions:
 .const SCAN_ANGLE 45.0
 
 start:
-    ; Initialize
     mov @d0 0.0    ; Main loop counter
     
 main_loop:
-    ; Main loop counter
     push @d0
     push 1.0
     add
     pop @d0
-    
-    ; Call zigzag movement subroutine
     call zigzag
-    
-    ; Call scan and fire subroutine
     call scan_and_fire
-    
-    ; Wait a few cycles
     mov @c 5
 wait_loop:
     nop
-loop wait_loop
-    
+    loop wait_loop
     jmp main_loop
 
-; Zigzag movement subroutine
 zigzag:
-    ; Save registers we'll modify
     push @d4
-    
-    ; Select drive and set velocity
     select DRIVE_ID
     drive 0.5
-    
-    ; Calculate zigzag angle based on counter
     push @d0
     push 180.0
     mul
     pop @d4
-    
     push @d4
     sin
     pop @d4
-    
     push @d4
     push 45.0
     mul
     pop @d4
-    
-    ; Request rotation
     rotate @d4
-    
-    ; Restore saved registers
     pop @d4
-    
     ret
 
-; Scan and fire subroutine
 scan_and_fire:
-    ; Save registers we'll modify
     push @d5
-    
-    ; Select turret
     select TURRET_ID
-    
-    ; Rotate turret for scanning
     rotate SCAN_ANGLE
-    
-    ; Scan for targets
     scan
-    
-    ; Check if target in range
     cmp @target_distance 0.3
     jg no_target_detected
-    
-    ; Target detected, fire!
     fire 1.0
-    
+
 no_target_detected:
-    ; Restore saved registers
     pop @d5
-    
     ret
 ```
 
@@ -1076,10 +996,7 @@ This program demonstrates using binary operations for bit manipulation:
 .const BIT_7 128
 
 start:
-    ; Initialize a value to manipulate
     mov @d0 0.0  ; Start with all bits clear
-    
-    ; Set specific bits
     push @d0
     push BIT_0   ; Set bit 0
     or
@@ -1089,21 +1006,16 @@ start:
     or
     pop @d0      ; @d0 now contains: 00100101 (37)
     dbg @d0      ; Display the value
-    
-    ; Check if specific bits are set
     push @d0
     push BIT_2   ; Check bit 2
     and
     pop @d1      ; @d1 will be 4 (bit is set)
     dbg @d1
-    
     push @d0
     push BIT_1   ; Check bit 1
     and
     pop @d2      ; @d2 will be 0 (bit is not set)
     dbg @d2
-    
-    ; Toggle bits
     push @d0
     push BIT_0   ; Toggle bit 0 (was set, now clear)
     xor
@@ -1111,8 +1023,6 @@ start:
     xor
     pop @d3      ; @d3 now contains: 00100110 (38)
     dbg @d3
-    
-    ; Create a bit mask and apply it
     mov @d4 0.0
     push @d4
     push BIT_2   ; Set bit 2
@@ -1120,15 +1030,11 @@ start:
     push BIT_3   ; Set bit 3
     or
     pop @d4      ; @d4 now contains: 00001100 (12)
-    
-    ; Apply mask with AND (keep only bits 2 and 3)
     push @d3     ; Value: 00100110 (38)
     push @d4     ; Mask:  00001100 (12)
     and
     pop @d5      ; @d5 now contains: 00000100 (4)
     dbg @d5
-
-    ; Bitwise NOT example
     mov @d6 85   ; 01010101
     push @d6
     not          ; Inverts bits -> 10101010 (for the lower 8 bits)
@@ -1136,28 +1042,18 @@ start:
                 ; Result would be 0xFFFFFFAA (as u32) -> converted to f64
     pop @d7
     dbg @d7      ; Display the floating point representation of the inverted bits
-
-    ; Demonstrate shift operations
     mov @d8 1.0  ; 00000001 (1)
-    
-    ; Shift left (multiply by 2^n)
     push @d8
     push 3       ; Shift left by 3 bits
     shl          ; 00001000 (8)
     pop @d9
     dbg @d9
-    
-    ; Shift right (divide by 2^n)
     push @d9
     push 1       ; Shift right by 1 bit
     shr          ; 00000100 (4)
     pop @d10
     dbg @d10
-    
-    ; Create bit patterns using shifts
     mov @d11 0.0
-    
-    ; Set every other bit using shifts and OR
     push @d11
     push 1       ; 00000001
     or           ; Set bit 0
@@ -1176,36 +1072,3 @@ start:
 loop:
     jmp loop    ; Loop forever
 ```
-
-## Programming Tips and Best Practices
-
-1. **Stack Management**
-   - Always balance your stack operations (push/pop)
-   - When using subroutines, save any registers you'll modify by pushing them at the start of the subroutine and restoring them before returning
-
-2. **Component Selection**
-   - Always select a component before using component-specific instructions
-   - Check that the component is selected before using it: `cmp @component @COMPONENT_ID; jnz not_selected`
-
-3. **Error Handling**
-   - Check the `@fault` register periodically to detect VM errors
-   - Use labels and jumps to handle different error conditions
-
-4. **Code Organization**
-   - Use constants for important values
-   - Use meaningful labels and consistent naming
-   - Add comments to explain complex logic
-   - Structure your code into clear sections or subroutines
-
-5. **Optimization**
-   - Use subroutines for repeated code sections
-   - Minimize expensive operations (especially math operations with higher cycle costs)
-   - Prioritize register operations over stack operations when possible
-
-## Conclusion
-
-The Bot Arena Assembly Language provides a powerful yet approachable means of programming battle robots. By understanding the VM's stack-based nature, mastering component selection and control, and organizing your code effectively, you can create sophisticated robot behaviors even with this minimal instruction set.
-
-For additional examples and techniques, refer to the sample programs included with Bot Arena or study successful bot programs from other users.
-
-- **Note:** The `@component` register is read-only from user code. It can only be changed by the `select` and `deselect` instructions, not by `mov` or other register operations.
