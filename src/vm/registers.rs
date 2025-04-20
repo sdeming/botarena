@@ -237,10 +237,14 @@ mod tests {
             regs.set(Register::Power, 1.0),
             Err(RegisterError::ReadOnlyRegister)
         );
+        // @component should be read-only
         assert_eq!(
             regs.set(Register::Component, 1.0),
             Err(RegisterError::ReadOnlyRegister)
         );
+        // set_internal should still work for @component
+        assert!(regs.set_internal(Register::Component, 2.0).is_ok());
+        assert_eq!(regs.get(Register::Component).unwrap(), 2.0);
         assert_eq!(
             regs.set(Register::TurretDirection, 1.0),
             Err(RegisterError::ReadOnlyRegister)
