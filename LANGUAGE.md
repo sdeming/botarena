@@ -1,5 +1,63 @@
 # Bot Arena Assembly Language Guide
 
+## SYNTAX
+
+RASM (the Bot Arena assembly language) uses a simple, flexible syntax designed for readability and ease of use. Here are the key rules:
+
+- **One Instruction Per Line:**
+  - Each line contains at most one instruction.
+  - Example: `mov @d1 4`
+
+- **Argument Separators:**
+  - Arguments can be separated by spaces **or** optional commas.
+  - Both of these are valid:
+    - `mov @d1 4`
+    - `mov @d1, 4`
+    - `add @d1, @d2`
+    - `add @d1 @d2`
+
+- **Comments:**
+  - Comments can start with `;`, `#`, or `//` and can appear anywhere on a line.
+  - Example: `push 1.0   ; This is a comment`
+  - Example: `mov @d1 4  # Set register d1 to 4`
+  - Example: `add @d1, @d2 // Add d2 to d1`
+
+- **Labels:**
+  - Labels end with a colon (`:`) and must be at the start of a line (optionally followed by an instruction).
+  - Example:
+    - `start:`
+    - `loop: add @d1, 1`
+
+- **Constants:**
+  - Constants are defined with `.const` at the start of a line.
+  - Example: `.const MAX_SPEED 1.0`
+  - **You can use simple expressions when defining constants.**
+    - Supported operators: `+`, `-`, `*`, `/`, `%` (modulo), and parentheses for grouping.
+    - Constants can reference previously defined constants.
+    - Examples:
+      - `.const DOUBLE_MAX MAX * 2`
+      - `.const CENTER_X (ARENA_WIDTH - 1) / 2`
+      - `.const AREA ARENA_WIDTH * ARENA_HEIGHT`
+
+- **Whitespace:**
+  - Extra spaces and tabs are ignored except as argument separators.
+  - Example: `   mov    @d1   ,   4   `
+
+- **Case Insensitivity:**
+  - Instructions and register names are not case-sensitive.
+  - Example: `MOV @D1, 4` is the same as `mov @d1, 4`
+
+- **Summary Example:**
+  ```asm
+  ; Example program
+  .const MAX 10
+  start:  mov @d1, MAX   # Set d1 to MAX
+          add @d1, 1     // Increment d1
+          jmp start      ; Loop forever
+  ```
+
+---
+
 This document serves as both a tutorial and a reference guide for Bot Arena's custom assembly language (RASM), used to program battle robots in the Bot Arena simulation environment.
 
 ## Table of Contents
