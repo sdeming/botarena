@@ -6,7 +6,12 @@ use crate::robot::RobotStatus;
 use crate::types::*;
 use crate::utils;
 use log::info;
+use macroquad::miniquad::{self, BlendFactor, BlendState, BlendValue, Equation, PipelineParams, TextureFormat, TextureParams, FilterMode};
 use macroquad::prelude::*;
+
+const BRIGHTNESS_THRESHOLD: f32 = 0.05;
+const BLUR_PASSES: usize = 2; // Keep blur passes low for now
+const GLOW_INTENSITY: f32 = 2.0; // Factor to multiply glow brightness
 
 // Conversion helpers
 fn point_to_vec2(p: Point, arena_screen_width: i32, arena_screen_height: i32) -> Vec2 {
@@ -38,13 +43,213 @@ fn brighten_color(color: Color, amount: f32) -> Color {
 
 // Handles rendering the simulation state using macroquad
 pub struct Renderer {
-    // macroquad does not require explicit window/thread handles
+    material: Option<Material>,
+    scene_rt: Option<RenderTarget>,
+    bright_rt: Option<RenderTarget>,
+    blur_rt1: Option<RenderTarget>,
+    blur_rt2: Option<RenderTarget>,
+    brightness_material: Option<Material>,
+    h_blur_material: Option<Material>,
+    v_blur_material: Option<Material>,
+    additive_material: Option<Material>, // Material for final additive blend
 }
 
 impl Renderer {
     pub fn new() -> Self {
-        // macroquad window is initialized in main, nothing to do here
-        Renderer {}
+        Renderer {
+            material: None,
+            scene_rt: None,
+            bright_rt: None,
+            blur_rt1: None,
+            blur_rt2: None,
+            brightness_material: None,
+            h_blur_material: None,
+            v_blur_material: None,
+            additive_material: None, // Initialize
+        }
+    }
+
+    pub fn init_material(&mut self) {
+        let material = load_material(
+            ShaderSource::Glsl {
+                vertex: "#version 100
+attribute vec3 position;
+attribute vec2 texcoord; // We don't use texcoord here, but need it for macroquad's default mesh
+varying vec4 frag_color; // Pass color through
+uniform mat4 Model;
+uniform mat4 Projection;
+void main() {
+    gl_Position = Projection * Model * vec4(position, 1.0);
+    // Assign a default color or pass vertex color if available
+    // Since we're tinting everything drawn with this shader,
+    // the actual input color doesn't matter as much,
+    // but let's just use white.
+    frag_color = vec4(1.0, 1.0, 1.0, 1.0);
+}",
+                fragment: "#version 100
+precision mediump float;
+varying vec4 frag_color; // Receive color from vertex shader
+void main() {
+    // Apply red tint to the incoming fragment color
+    gl_FragColor = frag_color * vec4(1.0, 0.3, 0.3, 1.0); // Stronger red tint
+}",
+            },
+            // Note: No MaterialParams needed if not using textures/uniforms beyond default Model/Projection
+             MaterialParams::default() // Use default params
+        ).unwrap();
+        self.material = Some(material);
+    }
+
+    // Initialize materials and render targets for the glow effect
+    pub fn init_glow_resources(&mut self) {
+        // Use miniquad::render_target to create RenderTargets
+        self.scene_rt = Some(render_target(ARENA_WIDTH as u32, ARENA_HEIGHT as u32));
+        self.bright_rt = Some(render_target(ARENA_WIDTH as u32, ARENA_HEIGHT as u32));
+        self.blur_rt1 = Some(render_target(ARENA_WIDTH as u32, ARENA_HEIGHT as u32));
+        self.blur_rt2 = Some(render_target(ARENA_WIDTH as u32, ARENA_HEIGHT as u32));
+
+        // Use imported miniquad types
+        let texture_params = TextureParams {
+            format: TextureFormat::RGBA8,
+            min_filter: FilterMode::Linear,
+            mag_filter: FilterMode::Linear,
+            ..Default::default()
+        };
+        // Set filter on the textures using the imported FilterMode
+        self.scene_rt.as_mut().unwrap().texture.set_filter(FilterMode::Linear);
+        self.bright_rt.as_mut().unwrap().texture.set_filter(FilterMode::Linear);
+        self.blur_rt1.as_mut().unwrap().texture.set_filter(FilterMode::Linear);
+        self.blur_rt2.as_mut().unwrap().texture.set_filter(FilterMode::Linear);
+
+        let post_process_vertex_shader = "#version 100
+attribute vec3 position;
+attribute vec2 texcoord;
+varying vec2 uv;
+uniform mat4 Model;
+uniform mat4 Projection;
+void main() {
+    gl_Position = Projection * Model * vec4(position, 1.0);
+    uv = texcoord;
+}";
+
+        let brightness_fragment_shader = "#version 100
+precision mediump float;
+varying vec2 uv;
+uniform sampler2D InputTexture;
+uniform float Threshold;
+
+void main() {
+    vec4 color = texture2D(InputTexture, uv);
+    float brightness = dot(color.rgb, vec3(0.2126, 0.7152, 0.0722));
+    // Restore thresholding to get bright parts
+    vec4 final_color = step(Threshold, brightness) * color;
+    gl_FragColor = final_color;
+}";
+
+        // Simplified Box Blur for now (Gaussian is better but more complex)
+        let blur_fragment_shader = "#version 100
+precision mediump float;
+varying vec2 uv;
+uniform sampler2D InputTexture;
+uniform vec2 BlurDir; // (1.0/texture_width, 0.0) or (0.0, 1.0/texture_height)
+
+void main() {
+    vec4 color = vec4(0.0);
+    vec2 texel_size = vec2(BlurDir.x, BlurDir.y);
+    color += texture2D(InputTexture, uv - 4.0 * texel_size) * 0.05;
+    color += texture2D(InputTexture, uv - 3.0 * texel_size) * 0.09;
+    color += texture2D(InputTexture, uv - 2.0 * texel_size) * 0.12;
+    color += texture2D(InputTexture, uv - 1.0 * texel_size) * 0.15;
+    color += texture2D(InputTexture, uv) * 0.18;
+    color += texture2D(InputTexture, uv + 1.0 * texel_size) * 0.15;
+    color += texture2D(InputTexture, uv + 2.0 * texel_size) * 0.12;
+    color += texture2D(InputTexture, uv + 3.0 * texel_size) * 0.09;
+    color += texture2D(InputTexture, uv + 4.0 * texel_size) * 0.05;
+    gl_FragColor = color;
+}";
+
+        let brightness_params = MaterialParams {
+            textures: vec!["InputTexture".to_string()],
+            uniforms: vec![UniformDesc::new("Threshold", UniformType::Float1)],
+            pipeline_params: PipelineParams {
+                color_blend: None,
+                ..Default::default()
+            },
+            ..Default::default()
+        };
+
+        let h_blur_params = MaterialParams {
+            textures: vec!["InputTexture".to_string()],
+            uniforms: vec![UniformDesc::new("BlurDir", UniformType::Float2)],
+            pipeline_params: PipelineParams { color_blend: None, ..Default::default() },
+            ..Default::default()
+        };
+        let v_blur_params = MaterialParams {
+            textures: vec!["InputTexture".to_string()],
+            uniforms: vec![UniformDesc::new("BlurDir", UniformType::Float2)],
+            pipeline_params: PipelineParams { color_blend: None, ..Default::default() },
+            ..Default::default()
+        };
+
+        self.brightness_material = Some(load_material(
+            ShaderSource::Glsl {
+                vertex: post_process_vertex_shader,
+                fragment: brightness_fragment_shader,
+            },
+            brightness_params,
+        ).unwrap());
+
+        // Horizontal Blur Material
+        self.h_blur_material = Some(load_material(
+            ShaderSource::Glsl {
+                vertex: post_process_vertex_shader,
+                fragment: &blur_fragment_shader,
+            },
+            h_blur_params,
+        ).unwrap());
+
+        // Vertical Blur Material
+        self.v_blur_material = Some(load_material(
+            ShaderSource::Glsl {
+                vertex: post_process_vertex_shader,
+                fragment: &blur_fragment_shader,
+            },
+            v_blur_params,
+        ).unwrap());
+
+        // Define minimal passthrough fragment shader WITH intensity uniform
+        let passthrough_fragment_shader = "#version 100
+precision mediump float;
+varying vec2 uv;
+uniform sampler2D InputTexture;
+uniform float GlowIntensity; // Add intensity uniform
+void main() {
+    vec4 glow_color = texture2D(InputTexture, uv);
+    gl_FragColor = glow_color * GlowIntensity; // Multiply by intensity
+}";
+
+        // Create material for additive blending step
+        let additive_blend_state = BlendState::new(
+            Equation::Add,
+            BlendFactor::One,
+            BlendFactor::One
+        );
+        let additive_pipeline_params = PipelineParams {
+            color_blend: Some(additive_blend_state),
+            ..Default::default()
+        };
+        self.additive_material = Some(load_material(
+            ShaderSource::Glsl { // Use GLSL source
+                vertex: post_process_vertex_shader, // Can reuse the same vertex shader
+                fragment: passthrough_fragment_shader, // Use minimal fragment shader
+            },
+            MaterialParams {
+                textures: vec!["InputTexture".to_string()], // Still needs texture input
+                uniforms: vec![UniformDesc::new("GlowIntensity", UniformType::Float1)], // Add uniform desc
+                pipeline_params: additive_pipeline_params,
+                ..Default::default()
+            }
+        ).unwrap());
     }
 
     pub fn draw_frame(
@@ -60,8 +265,23 @@ impl Renderer {
         cycle_duration: f32,
         announcement: Option<&str>,
     ) {
-        clear_background(BLACK);
+        // Ensure all RTs and materials are initialized (should be done in main, but double-check)
+        if self.scene_rt.is_none() {
+             self.init_glow_resources();
+        }
+
+        // --- Pass 1: Draw Scene to Render Target ---
+        let scene_rt = self.scene_rt.as_ref().unwrap();
+        set_camera(&Camera2D {
+            render_target: Some(scene_rt.clone()),
+            zoom: vec2(1.0 / ARENA_WIDTH as f32 * 2.0, 1.0 / ARENA_HEIGHT as f32 * 2.0),
+            target: vec2(ARENA_WIDTH as f32 / 2.0, ARENA_HEIGHT as f32 / 2.0),
+            ..Default::default()
+        });
+        clear_background(BLACK); // Clear the scene RT
+
         let alpha = (time_accumulator / cycle_duration).clamp(0.0, 1.0);
+        // Draw arena elements normally (no special material here)
         Self::draw_arena_boundaries(arena, ARENA_WIDTH, ARENA_HEIGHT);
         Self::draw_obstacles(arena, ARENA_WIDTH, ARENA_HEIGHT);
         for robot in robots {
@@ -69,6 +289,100 @@ impl Renderer {
         }
         Self::draw_projectiles(arena, ARENA_WIDTH, ARENA_HEIGHT, alpha as f64);
         Self::draw_particles(particle_system, ARENA_WIDTH, ARENA_HEIGHT, alpha);
+
+        set_default_camera(); // Reset camera after drawing to RT
+
+        // --- Pass 2: Extract Bright Pixels ---
+        let bright_rt = self.bright_rt.as_ref().unwrap();
+        let scene_texture = &self.scene_rt.as_ref().unwrap().texture;
+        let brightness_material = self.brightness_material.as_ref().unwrap();
+        brightness_material.set_uniform("Threshold", BRIGHTNESS_THRESHOLD);
+        brightness_material.set_texture("InputTexture", scene_texture.clone());
+
+        set_camera(&Camera2D {
+            render_target: Some(bright_rt.clone()),
+            zoom: vec2(1.0 / ARENA_WIDTH as f32 * 2.0, 1.0 / ARENA_HEIGHT as f32 * 2.0),
+            target: vec2(ARENA_WIDTH as f32 / 2.0, ARENA_HEIGHT as f32 / 2.0),
+            ..Default::default()
+        });
+        clear_background(BLACK);
+        gl_use_material(brightness_material);
+        draw_texture_ex(scene_texture, 0.0, 0.0, WHITE, DrawTextureParams { ..Default::default() });
+        gl_use_default_material();
+        set_default_camera();
+
+        // --- Pass 3: Blur Bright Pixels (Ping-Pong) ---
+        let h_blur_material = self.h_blur_material.as_ref().unwrap();
+        let v_blur_material = self.v_blur_material.as_ref().unwrap();
+        let blur_rt1 = self.blur_rt1.as_ref().unwrap();
+        let blur_rt2 = self.blur_rt2.as_ref().unwrap();
+
+        let blur_dir_h = vec2(1.0 / ARENA_WIDTH as f32, 0.0);
+        let blur_dir_v = vec2(0.0, 1.0 / ARENA_HEIGHT as f32);
+
+        let mut current_source_rt = bright_rt; // Start with the bright pass result
+        let mut current_target_rt = blur_rt1;
+        let mut next_target_rt = blur_rt2;
+
+        for i in 0..BLUR_PASSES {
+            // --- Horizontal Blur --- 
+            let source_texture_h = &current_source_rt.texture;
+            set_camera(&Camera2D { 
+                render_target: Some(current_target_rt.clone()),
+                zoom: vec2(1.0 / ARENA_WIDTH as f32 * 2.0, 1.0 / ARENA_HEIGHT as f32 * 2.0),
+                target: vec2(ARENA_WIDTH as f32 / 2.0, ARENA_HEIGHT as f32 / 2.0),
+                ..Default::default() 
+            });
+            clear_background(BLACK);
+            h_blur_material.set_texture("InputTexture", source_texture_h.clone());
+            h_blur_material.set_uniform("BlurDir", blur_dir_h);
+            gl_use_material(h_blur_material);
+            draw_rectangle(0.0, 0.0, ARENA_WIDTH as f32, ARENA_HEIGHT as f32, WHITE);
+            gl_use_default_material();
+            set_default_camera();
+            // Swap textures for next pass
+            std::mem::swap(&mut current_source_rt, &mut current_target_rt);
+            std::mem::swap(&mut current_target_rt, &mut next_target_rt);
+
+            // --- Vertical Blur --- 
+            let source_texture_v = &current_source_rt.texture;
+            set_camera(&Camera2D { 
+                render_target: Some(current_target_rt.clone()),
+                zoom: vec2(1.0 / ARENA_WIDTH as f32 * 2.0, 1.0 / ARENA_HEIGHT as f32 * 2.0),
+                target: vec2(ARENA_WIDTH as f32 / 2.0, ARENA_HEIGHT as f32 / 2.0),
+                 ..Default::default() 
+            });
+            clear_background(BLACK);
+            v_blur_material.set_texture("InputTexture", source_texture_v.clone());
+            v_blur_material.set_uniform("BlurDir", blur_dir_v);
+            gl_use_material(v_blur_material);
+            draw_rectangle(0.0, 0.0, ARENA_WIDTH as f32, ARENA_HEIGHT as f32, WHITE);
+            gl_use_default_material();
+            set_default_camera();
+            // Swap textures for next pass (or final result)
+            std::mem::swap(&mut current_source_rt, &mut current_target_rt);
+            std::mem::swap(&mut current_target_rt, &mut next_target_rt);
+        }
+        // After the loop, current_source_rt holds the final blurred texture
+        let final_glow_rt = current_source_rt;
+
+        // --- Final Composite: Draw Scene + Additive Glow to Screen ---
+        clear_background(BLACK); // Clear the main screen
+
+        // 1. Draw the original scene - NO flip needed now
+        draw_texture_ex(&scene_rt.texture, 0.0, 0.0, WHITE, DrawTextureParams { ..Default::default() });
+
+        // 2. Draw the final blurred glow texture using the additive material and draw_rectangle
+        let additive_material = self.additive_material.as_ref().unwrap();
+        let glow_texture = &final_glow_rt.texture;
+        additive_material.set_texture("InputTexture", glow_texture.clone()); // Bind glow tex to material
+        additive_material.set_uniform("GlowIntensity", GLOW_INTENSITY); // Set intensity
+        gl_use_material(additive_material); // This applies the additive blend pipeline
+        // Draw rectangle, the material's passthrough shader will sample the glow texture
+        draw_rectangle(0.0, 0.0, ARENA_WIDTH as f32, ARENA_HEIGHT as f32, WHITE);
+        gl_use_default_material(); // Reset to default material/pipeline
+
+        // --- Draw UI (unaffected by glow) ---
         Self::draw_ui_panel(
             robots,
             current_turn,

@@ -75,6 +75,8 @@ async fn main() {
     // Initialize the renderer
     info!("Initializing macroquad rendering system");
     let mut renderer = render::Renderer::new();
+    renderer.init_material();
+    renderer.init_glow_resources();
     info!("Renderer initialized.");
 
     // Run the game loop
