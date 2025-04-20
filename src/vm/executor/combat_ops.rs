@@ -15,6 +15,47 @@ impl CombatOperations {
     pub fn new() -> Self {
         CombatOperations
     }
+
+    // Shared helper for firing
+    fn handle_fire(
+        robot: &mut Robot,
+        power: f64,
+        command_queue: &mut VecDeque<ArenaCommand>,
+    ) {
+        let fire_position = robot.position;
+        let fire_direction = robot.turret.direction;
+        if let Some(projectile) = robot.fire_weapon(power) {
+            command_queue.push_back(ArenaCommand::SpawnProjectile(projectile));
+            command_queue.push_back(ArenaCommand::SpawnMuzzleFlash {
+                position: fire_position,
+                direction: fire_direction,
+            });
+        }
+    }
+
+    // Shared helper for scanning
+    fn handle_scan<F>(
+        robot: &mut Robot,
+        get_robot_info: &mut F,
+        robot_ids: &[u32],
+        arena: &Arena,
+    ) -> Result<(f64, f64), VMFault>
+    where
+        F: FnMut(u32) -> Option<(Point, RobotStatus)>,
+    {
+        let (distance, angle) = robot.scan_for_targets_by_id(get_robot_info, robot_ids, arena);
+        robot
+            .vm_state
+            .registers
+            .set_internal(Register::TargetDistance, distance)
+            .map_err(|_| VMFault::PermissionError)?;
+        robot
+            .vm_state
+            .registers
+            .set_internal(Register::TargetDirection, angle)
+            .map_err(|_| VMFault::PermissionError)?;
+        Ok((distance, angle))
+    }
 }
 
 impl InstructionProcessor for CombatOperations {
@@ -37,23 +78,11 @@ impl InstructionProcessor for CombatOperations {
             Instruction::Fire(op) => {
                 crate::debug_weapon!(robot.id, robot.vm_state.turn, robot.vm_state.cycle, "FIRE!");
                 let power = op.get_value(&robot.vm_state)?;
-                // Store fire details *before* calling fire_weapon which moves the robot reference
-                let fire_position = robot.position; // Position at time of fire command
-                let fire_direction = robot.turret.direction; // Direction at time of fire command
-
-                if let Some(projectile) = robot.fire_weapon(power) {
-                    command_queue.push_back(ArenaCommand::SpawnProjectile(projectile));
-                    // Push muzzle flash command using stored details
-                    command_queue.push_back(ArenaCommand::SpawnMuzzleFlash {
-                        position: fire_position,
-                        direction: fire_direction,
-                    });
-                }
+                Self::handle_fire(robot, power, command_queue);
                 Ok(())
             }
             Instruction::Scan => {
-                // Use the scan_for_targets_by_id method
-                // Create a closure that extracts just the position and status from a robot ID
+                // Build closure and robot_ids from all_robots
                 let mut get_robot_info = |id: u32| {
                     for other_robot in all_robots {
                         if other_robot.id == id {
@@ -62,25 +91,8 @@ impl InstructionProcessor for CombatOperations {
                     }
                     None
                 };
-
-                // Get the list of all robot IDs
                 let robot_ids: Vec<u32> = all_robots.iter().map(|r| r.id).collect();
-
-                // Call the method with the closure and robot IDs
-                let (distance, angle) =
-                    robot.scan_for_targets_by_id(&mut get_robot_info, &robot_ids, arena);
-
-                // Update registers
-                robot
-                    .vm_state
-                    .registers
-                    .set_internal(Register::TargetDistance, distance)
-                    .map_err(|_| VMFault::PermissionError)?;
-                robot
-                    .vm_state
-                    .registers
-                    .set_internal(Register::TargetDirection, angle)
-                    .map_err(|_| VMFault::PermissionError)?;
+                Self::handle_scan(robot, &mut get_robot_info, &robot_ids, arena)?;
                 Ok(())
             }
             _ => Err(VMFault::InvalidInstruction),
@@ -102,43 +114,18 @@ where
     F: FnMut(u32) -> Option<(Point, RobotStatus)>,
 {
     let combat_ops = CombatOperations::new();
-
     match instruction {
         Instruction::Fire(op) => {
             crate::debug_weapon!(robot.id, robot.vm_state.turn, robot.vm_state.cycle, "FIRE!");
             let power = op.get_value(&robot.vm_state)?;
-            // Store fire details *before* calling fire_weapon
-            let fire_position = robot.position;
-            let fire_direction = robot.turret.direction;
-
-            if let Some(projectile) = robot.fire_weapon(power) {
-                command_queue.push_back(ArenaCommand::SpawnProjectile(projectile));
-                command_queue.push_back(ArenaCommand::SpawnMuzzleFlash {
-                    position: fire_position,
-                    direction: fire_direction,
-                });
-            }
+            CombatOperations::handle_fire(robot, power, command_queue);
             Ok(())
         }
         Instruction::Scan => {
-            // Use the scan_for_targets_by_id method directly with the provided function
-            let (distance, angle) = robot.scan_for_targets_by_id(get_robot_info, robot_ids, arena);
-
-            // Update registers
-            robot
-                .vm_state
-                .registers
-                .set_internal(Register::TargetDistance, distance)
-                .map_err(|_| VMFault::PermissionError)?;
-            robot
-                .vm_state
-                .registers
-                .set_internal(Register::TargetDirection, angle)
-                .map_err(|_| VMFault::PermissionError)?;
+            CombatOperations::handle_scan(robot, get_robot_info, robot_ids, arena)?;
             Ok(())
         }
         _ => {
-            // Not a combat operation
             if combat_ops.can_process(instruction) {
                 combat_ops.process(robot, &[], arena, instruction, command_queue)
             } else {
