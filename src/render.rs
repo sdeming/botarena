@@ -11,7 +11,7 @@ use macroquad::prelude::*;
 
 const BRIGHTNESS_THRESHOLD: f32 = 0.05;
 const BLUR_PASSES: usize = 2; // Keep blur passes low for now
-const GLOW_INTENSITY: f32 = 2.0; // Factor to multiply glow brightness
+const GLOW_INTENSITY: f32 = 1.5; // Factor to multiply glow brightness
 
 // Conversion helpers
 fn point_to_vec2(p: Point, arena_screen_width: i32, arena_screen_height: i32) -> Vec2 {

@@ -10,7 +10,6 @@ clap = { version = "4.5", features = ["derive"] }
 log = "0.4"
 env_logger = "0.11"
 chrono = "0.4"
-wasm-bindgen = "0.2"
 macroquad = "0.4"
 
 [dev-dependencies]

@@ -118,7 +118,6 @@ dependencies = [
  "macroquad",
  "rand",
  "thiserror",
- "wasm-bindgen",
 ]
 
 [[package]]
