@@ -5,10 +5,10 @@ use crate::render::Renderer;
 use crate::robot::{Robot, RobotStatus};
 use crate::types::{ArenaCommand, Point};
 use log::{error, info};
-use raylib::prelude::Vector2;
 use std::collections::{HashMap, VecDeque};
 use std::fs;
 use std::process;
+use macroquad::prelude::{get_frame_time, next_frame, Vec2};
 
 /// The Game struct encapsulates the state and logic for running the bot arena simulation
 pub struct Game {
@@ -125,15 +125,15 @@ impl Game {
     }
 
     /// Run the main game loop using the provided renderer
-    pub fn run(&mut self, renderer: &mut Renderer) -> Result<(), Box<dyn std::error::Error>> {
+    pub async fn run(&mut self, renderer: &mut Renderer) -> Result<(), Box<dyn std::error::Error>> {
         info!("Starting main loop...");
 
         let mut announcement: Option<String> = None;
         let mut game_ended = false;
 
-        while !renderer.window_should_close() && self.current_turn <= self.max_turns && !self.game_over {
+        while !Renderer::window_should_close() && self.current_turn <= self.max_turns && !self.game_over {
             // Time accumulation
-            let frame_time = renderer.get_frame_time();
+            let frame_time = get_frame_time();
             self.time_accumulator += frame_time;
 
             // Fixed simulation update loop
@@ -162,6 +162,7 @@ impl Game {
                 self.cycle_duration,
                 None,
             );
+            next_frame().await;
         }
 
         // Prepare announcement message
@@ -179,8 +180,7 @@ impl Game {
 
         // After game over, show announcement and wait for ESC
         if game_ended {
-            use raylib::consts::KeyboardKey::KEY_ESCAPE;
-            while !renderer.window_should_close() {
+            while !Renderer::window_should_close() {
                 // Draw overlay with announcement
                 renderer.draw_frame(
                     &self.arena,
@@ -194,10 +194,10 @@ impl Game {
                     self.cycle_duration,
                     announcement.as_deref(),
                 );
-                // Check for ESC key
-                if renderer.is_key_down(KEY_ESCAPE) {
+                if Renderer::is_key_down(macroquad::prelude::KeyCode::Escape) {
                     break;
                 }
+                next_frame().await;
             }
         }
         Ok(())
@@ -284,7 +284,7 @@ impl Game {
                     let angle_rad = direction.to_radians();
                     let flash_offset_x = angle_rad.cos() * flash_offset_distance;
                     let flash_offset_y = angle_rad.sin() * flash_offset_distance;
-                    let flash_pos_world = Vector2 {
+                    let flash_pos_world = Vec2 {
                         x: (position.x + flash_offset_x) as f32,
                         y: (position.y + flash_offset_y) as f32,
                     };

@@ -11,6 +11,8 @@ pub mod vm;
 
 use clap::Parser; // <-- Add clap import
 use log::{LevelFilter, info};
+use macroquad::prelude::*;
+use crate::config::{ARENA_WIDTH, UI_PANEL_WIDTH, WINDOW_HEIGHT};
 
 // --- Command Line Arguments ---
 #[derive(Parser, Debug)]
@@ -34,7 +36,18 @@ struct Args {
     log_level: String,
 }
 
-fn main() -> Result<(), Box<dyn std::error::Error>> {
+fn window_conf() -> Conf {
+    Conf {
+        window_title: "Bot Arena".to_owned(),
+        window_width: (ARENA_WIDTH + UI_PANEL_WIDTH) as i32,
+        window_height: WINDOW_HEIGHT as i32,
+        window_resizable: false,
+        ..Default::default()
+    }
+}
+
+#[macroquad::main(window_conf)]
+async fn main() {
     // Parse command line arguments
     let args = Args::parse();
 
@@ -57,15 +70,15 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     info!("Initializing Bot Arena...");
 
     // Create and initialize the game
-    let mut game = game::Game::new(&args.robot_files, args.turns)?;
+    let mut game = game::Game::new(&args.robot_files, args.turns).expect("Failed to create game");
 
     // Initialize the renderer
-    info!("Initializing Raylib rendering system");
+    info!("Initializing macroquad rendering system");
     let mut renderer = render::Renderer::new();
+    renderer.init_material();
+    renderer.init_glow_resources();
     info!("Renderer initialized.");
 
     // Run the game loop
-    game.run(&mut renderer)?;
-
-    Ok(())
+    game.run(&mut renderer).await.expect("Game loop failed");
 }
