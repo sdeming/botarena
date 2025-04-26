@@ -25,7 +25,6 @@ pub enum RobotStatus {
 pub struct DriveComponent {
     pub direction: f64,        // Current direction in degrees
     pub velocity: f64,         // Current velocity in units/cycle (+forward, -backward)
-    pub rotation_rate: f64,    // Degrees per cycle
     pub pending_rotation: f64, // Degrees remaining to rotate
 }
 
@@ -34,7 +33,6 @@ impl Default for DriveComponent {
         DriveComponent {
             direction: 0.0,
             velocity: 0.0,
-            rotation_rate: config::DEFAULT_DRIVE_ROTATION_RATE,
             pending_rotation: 0.0,
         }
     }
@@ -44,7 +42,6 @@ impl Default for DriveComponent {
 #[derive(Debug, Clone, Copy)]
 pub struct TurretComponent {
     pub direction: f64,        // Absolute angle (0-359.9 degrees) relative to arena
-    pub rotation_rate: f64,    // Degrees per cycle
     pub pending_rotation: f64, // Degrees remaining to rotate
     pub scanner: Scanner,      // Mounted scanner for target detection
     pub ranged: RangedWeapon,  // Mounted ranged weapon
@@ -54,7 +51,6 @@ impl Default for TurretComponent {
     fn default() -> Self {
         TurretComponent {
             direction: 0.0,
-            rotation_rate: config::DEFAULT_TURRET_ROTATION_RATE,
             pending_rotation: 0.0,
             scanner: Scanner::default(),
             ranged: RangedWeapon::default(),
@@ -96,13 +92,11 @@ impl Robot {
             drive: DriveComponent {
                 direction: initial_drive_dir,
                 velocity: 0.0,
-                rotation_rate: config::DEFAULT_DRIVE_ROTATION_RATE,
                 pending_rotation: 0.0,
             },
             prev_drive_direction: initial_drive_dir, // Initialize prev state
             turret: TurretComponent {
                 direction: initial_turret_dir,
-                rotation_rate: config::DEFAULT_TURRET_ROTATION_RATE,
                 pending_rotation: 0.0,
                 scanner: Scanner::default(),
                 ranged: RangedWeapon::default(),

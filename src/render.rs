@@ -438,29 +438,39 @@ void main() {
             4 => Color::from_rgba(140, 120, 20, 255),
             _ => Color::from_rgba(100, 50, 100, 255),
         };
-        let outline_color = brighten_color(body_color, 0.5);
+        let body_outline_color = brighten_color(body_color, 0.5);
         // Compute target directions
         let target_drive_deg = (robot.drive.direction + robot.drive.pending_rotation).rem_euclid(360.0) as f32;
         let target_turret_deg = (robot.turret.direction + robot.turret.pending_rotation).rem_euclid(360.0) as f32;
-        // Draw ghost (target) drive direction
-        if (target_drive_deg - interp_drive_deg as f32).abs() > 1e-2 {
-            Self::draw_triangle_at_angle(center_pos, radius * 2.0, target_drive_deg, faded_color(body_color, 0.3), outline_color, true);
-        }
-        // Draw ghost (target) turret direction
-        if (target_turret_deg - interp_turret_deg as f32).abs() > 1e-2 {
-            let turret_rad = target_turret_deg.to_radians();
-            let turret_end = center_pos + Vec2::new(turret_rad.cos(), turret_rad.sin()) * radius * 2.0 * 0.8;
-            draw_line(center_pos.x, center_pos.y, turret_end.x, turret_end.y, 2.0, faded_color(LIGHTGRAY, 0.3));
-        }
+        // Define ghost colors and thickness
+        let ghost_fill_color = faded_color(DARKGRAY, 0.2); // Adjusted background alpha
+        let ghost_outline_color = brighten_color(DARKGRAY, 0.2); // Darker outline based on DARKGRAY
+        let ghost_line_thickness = 0.5; // Thinner outline
+        // Draw ghost (target) drive direction (always draw)
+        Self::draw_triangle_at_angle(center_pos, radius * 2.0, target_drive_deg, ghost_fill_color, ghost_outline_color, false, ghost_line_thickness, false, BLACK);
+        // Draw ghost (target) turret direction (always draw)
+        let turret_rad = target_turret_deg.to_radians();
+        let turret_end = center_pos + Vec2::new(turret_rad.cos(), turret_rad.sin()) * radius * 2.0 * 0.8;
+        draw_line(center_pos.x, center_pos.y, turret_end.x, turret_end.y, 2.0, ghost_fill_color); // Use brighter background color
         // Draw robot body as triangle (interpolated)
-        Self::draw_triangle_at_angle(center_pos, radius, interp_drive_deg as f32, faded_color(body_color, 1.0), outline_color, true);
+        Self::draw_triangle_at_angle(center_pos, radius, interp_drive_deg as f32, faded_color(body_color, 1.0), body_outline_color, true, 1.0, true, WHITE);
         // Draw turret as a line (interpolated)
         let turret_rad = interp_turret_deg.to_radians() as f32;
         let turret_end = center_pos + Vec2::new(turret_rad.cos(), turret_rad.sin()) * radius * 0.8;
         draw_line(center_pos.x, center_pos.y, turret_end.x, turret_end.y, 2.0, faded_color(LIGHTGRAY, 1.0));
     }
 
-    fn draw_triangle_at_angle(center_pos: Vec2, radius: f32, angle_deg: f32, color: Color, outline_color: Color, with_outline: bool) {
+    fn draw_triangle_at_angle(
+        center_pos: Vec2,
+        radius: f32,
+        angle_deg: f32,
+        color: Color,
+        outline_color: Color,
+        with_outline: bool,
+        line_thickness: f32,
+        draw_tip_indicator: bool,
+        indicator_color: Color
+    ) {
         let angle_rad = angle_deg.to_radians();
         let cos_a = angle_rad.cos();
         let sin_a = angle_rad.sin();
@@ -477,10 +487,18 @@ void main() {
         let p2 = rotate(p2_base);
         let p3 = rotate(p3_base);
         draw_triangle(p1, p2, p3, color);
+
+        if draw_tip_indicator {
+            const INDICATOR_SIZE_FRACTION: f32 = 0.25;
+            let indicator_p2 = p1.lerp(p2, INDICATOR_SIZE_FRACTION);
+            let indicator_p3 = p1.lerp(p3, INDICATOR_SIZE_FRACTION);
+            draw_triangle(p1, indicator_p2, indicator_p3, indicator_color);
+        }
+
         if with_outline {
-            draw_line(p1.x, p1.y, p2.x, p2.y, 1.0, outline_color);
-            draw_line(p2.x, p2.y, p3.x, p3.y, 1.0, outline_color);
-            draw_line(p3.x, p3.y, p1.x, p1.y, 1.0, outline_color);
+            draw_line(p1.x, p1.y, p2.x, p2.y, line_thickness, outline_color);
+            draw_line(p2.x, p2.y, p3.x, p3.y, line_thickness, outline_color);
+            draw_line(p3.x, p3.y, p1.x, p1.y, line_thickness, outline_color);
         }
     }
 
