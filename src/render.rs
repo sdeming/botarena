@@ -6,6 +6,7 @@ use crate::types::*;
 use crate::utils;
 use macroquad::miniquad::{BlendFactor, BlendState, BlendValue, Equation, PipelineParams, TextureFormat, TextureParams, FilterMode};
 use macroquad::prelude::*;
+use crate::vm::registers::Register;
 
 const BRIGHTNESS_THRESHOLD: f32 = 0.05;
 const BLUR_PASSES: usize = 2; // Keep blur passes low for now
@@ -580,6 +581,46 @@ void main() {
             gl_use_default_material(); // Reset material after drawing all scanners
         }
         // --- End Scanner Draw ---
+
+        // --- Draw Target Indicators (After Glow, After Scanners) ---
+        set_default_camera(); // Ensure drawing to screen
+        for robot in robots {
+            // Check if the robot has a target lock
+            if let Ok(target_distance) = robot.vm_state.registers.get(Register::TargetDistance) {
+                if target_distance > 0.0 {
+                    if let Ok(target_direction_deg) = robot.vm_state.registers.get(Register::TargetDirection) {
+                        // Get scanner's interpolated position and color
+                        let interp_pos = utils::lerp_point(robot.prev_position, robot.position, alpha as f64);
+                        let body_color = match robot.id {
+                            1 => Color::from_rgba(40, 80, 140, 255),
+                            2 => Color::from_rgba(140, 40, 40, 255),
+                            3 => Color::from_rgba(40, 100, 40, 255),
+                            4 => Color::from_rgba(140, 120, 20, 255),
+                            _ => Color::from_rgba(100, 50, 100, 255),
+                        };
+                        
+                        // Calculate target world position
+                        let target_direction_rad = target_direction_deg.to_radians();
+                        let target_world_pos = Point {
+                            x: interp_pos.x + target_distance * target_direction_rad.cos(),
+                            y: interp_pos.y + target_distance * target_direction_rad.sin(),
+                        };
+
+                        // Convert to screen coordinates
+                        let target_screen_pos = point_to_vec2(target_world_pos, ARENA_WIDTH, ARENA_HEIGHT);
+
+                        // Draw indicator circle
+                        let indicator_radius = 6.0; // Adjust size as needed
+                        let indicator_color = faded_color(body_color, 0.7); // Use scanner's color, slightly faded
+                        let outline_color = brighten_color(body_color, 0.3);
+
+                        draw_circle(target_screen_pos.x, target_screen_pos.y, indicator_radius, indicator_color);
+                        draw_circle_lines(target_screen_pos.x, target_screen_pos.y, indicator_radius, 1.5, outline_color);
+                    }
+                }
+            }
+        }
+        // --- End Target Indicators ---
 
         // --- Draw UI (unaffected by glow) --- 
         self.draw_ui_panel(
