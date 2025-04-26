@@ -85,7 +85,6 @@ scan_and_sweep:
       scan
       cmp @target_distance 0.0
       jnz sas_fire_and_follow
-      jmp sas_maybe_sweep
 
   sas_maybe_sweep:
       cmp @turret_direction @drive_direction
