@@ -9,6 +9,7 @@ use std::collections::{HashMap, VecDeque};
 use std::fs;
 use std::process;
 use macroquad::prelude::{get_frame_time, next_frame, Vec2};
+use std::path::Path;
 
 /// The Game struct encapsulates the state and logic for running the bot arena simulation
 pub struct Game {
@@ -76,9 +77,16 @@ impl Game {
             let robot_id = (i + 1) as u32;
             let position = positions[i];
 
+            // Extract filename stem for the name
+            let robot_name = Path::new(filename)
+                .file_stem()
+                .and_then(|stem| stem.to_str())
+                .map(|s| s.to_string())
+                .unwrap_or_else(|| format!("Robot_{}", robot_id)); // Fallback name
+
             info!(
-                "Loading and parsing program for Robot {} from file: {}",
-                robot_id, filename
+                "Loading and parsing program for Robot {} (Name: {}) from file: {}",
+                robot_id, robot_name, filename
             );
             let program_content = match fs::read_to_string(filename) {
                 Ok(content) => content,
@@ -91,7 +99,7 @@ impl Game {
             // Parse the program using the predefined constants
             match crate::vm::parser::parse_assembly(&program_content, Some(&predefined_constants)) {
                 Ok(parsed_program) => {
-                    let mut robot = Robot::new(robot_id, position);
+                    let mut robot = Robot::new(robot_id, robot_name, position);
                     robot.load_program(parsed_program);
                     robots.push(robot);
                 }

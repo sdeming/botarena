@@ -39,6 +39,19 @@ fn brighten_color(color: Color, amount: f32) -> Color {
     )
 }
 
+// Helper function to calculate health bar gradient color
+fn get_health_gradient_color(ratio: f32) -> Color {
+    if ratio > 0.5 {
+        // Green to Yellow (1.0 -> 0.5)
+        let t = (ratio - 0.5) * 2.0;
+        Color::new(1.0 - t, 1.0, 0.0, 1.0) // Lerp green (0,1,0) to yellow (1,1,0)
+    } else {
+        // Yellow to Red (0.5 -> 0.0)
+        let t = ratio * 2.0;
+        Color::new(1.0, t, 0.0, 1.0) // Lerp yellow (1,1,0) to red (1,0,0)
+    }
+}
+
 // Handles rendering the simulation state using macroquad
 pub struct Renderer {
     material: Option<Material>,
@@ -126,8 +139,8 @@ void main() {
         let pipeline_params = PipelineParams {
             color_blend: Some(BlendState::new(
                 Equation::Add,
-                BlendFactor::One, // Use premultiplied alpha source factor
-                BlendFactor::OneMinusValue(BlendValue::SourceAlpha), // Correct standard alpha destination factor
+                BlendFactor::Value(BlendValue::SourceAlpha), // Use BlendValue::SourceAlpha
+                BlendFactor::OneMinusValue(BlendValue::SourceAlpha), // Use BlendValue::OneMinusSourceAlpha
             )),
             ..Default::default()
         };
@@ -329,6 +342,7 @@ void main() {
         announcement: Option<&str>,
     ) {
         // --- Bypass Glow Effect - Draw directly to screen --- 
+        /*
         set_default_camera(); // Ensure we are drawing to the screen
         clear_background(BLACK); // Clear the main screen
 
@@ -344,8 +358,10 @@ void main() {
         }
         Self::draw_projectiles(arena, ARENA_WIDTH, ARENA_HEIGHT, alpha as f64);
         Self::draw_particles(particle_system, ARENA_WIDTH, ARENA_HEIGHT, alpha);
+        // --- End Direct Draw ---
+        */
 
-        /* --- Glow Effect Code - Temporarily Disabled --- 
+        // --- Glow Effect Code --- 
         // Ensure all RTs and materials are initialized (should be done in main, but double-check)
         if self.scene_rt.is_none() {
              self.init_glow_resources();
@@ -462,7 +478,54 @@ void main() {
         // Draw rectangle, the material's passthrough shader will sample the glow texture
         draw_rectangle(0.0, 0.0, ARENA_WIDTH as f32, ARENA_HEIGHT as f32, WHITE);
         gl_use_default_material(); // Reset to default material/pipeline
-        */
+        
+        // --- Draw Scanners (After Glow, unaffected by it) ---
+        if let Some(scanner_material) = &self.scanner_material {
+            set_default_camera(); // Ensure drawing to screen
+            gl_use_material(scanner_material); // Use standard alpha blend material
+            for robot in robots {
+                // Recalculate necessary values 
+                let interp_pos = utils::lerp_point(robot.prev_position, robot.position, alpha as f64);
+                let interp_turret_deg = utils::angle_lerp(robot.prev_turret_direction, robot.turret.direction, alpha as f64);
+                let center_pos = point_to_vec2(interp_pos, ARENA_WIDTH, ARENA_HEIGHT);
+                 let body_color = match robot.id { 
+                     1 => Color::from_rgba(40, 80, 140, 255),
+                     2 => Color::from_rgba(140, 40, 40, 255),
+                     3 => Color::from_rgba(40, 100, 40, 255),
+                     4 => Color::from_rgba(140, 120, 20, 255),
+                     _ => Color::from_rgba(100, 50, 100, 255),
+                 };
+
+                // Reuse the mesh generation logic
+                let scanner_range = (robot.turret.scanner.range * ARENA_WIDTH.min(ARENA_HEIGHT) as f64) as f32;
+                let scanner_fov_deg = robot.turret.scanner.fov as f32;
+                let start_angle_deg = interp_turret_deg as f32 - scanner_fov_deg / 2.0;
+                let base_scanner_color = faded_color(body_color, 0.15);
+                let scanner_color = base_scanner_color; 
+
+                let num_segments = 20;
+                let mut vertices: Vec<Vertex> = Vec::with_capacity(num_segments + 2);
+                let mut indices: Vec<u16> = Vec::with_capacity(num_segments * 3);
+
+                vertices.push(Vertex::new(center_pos.x, center_pos.y, 0.0, 0.0, 0.0, scanner_color));
+                for i in 0..=num_segments {
+                     let t = i as f32 / num_segments as f32;
+                     let angle_deg = start_angle_deg + t * scanner_fov_deg;
+                     let angle_rad = angle_deg.to_radians();
+                     let point_on_arc = center_pos + Vec2::new(angle_rad.cos(), angle_rad.sin()) * scanner_range;
+                     vertices.push(Vertex::new(point_on_arc.x, point_on_arc.y, 0.0, 0.0, 0.0, scanner_color));
+                 }
+                for i in 1..=num_segments {
+                     indices.push(0);
+                     indices.push(i as u16);
+                     indices.push(i as u16 + 1);
+                 }
+                let mesh = Mesh { vertices, indices, texture: None };
+                draw_mesh(&mesh);
+            }
+            gl_use_default_material(); // Reset material after drawing all scanners
+        }
+        // --- End Scanner Draw ---
 
         // --- Draw UI (unaffected by glow) --- 
         self.draw_ui_panel(
@@ -480,8 +543,8 @@ void main() {
             color: WHITE,
             ..Default::default()
         };
-        draw_text_ex(&fps_text, 10.0, 20.0, fps_params); // Adjusted Y position slightly for clarity
-        
+        draw_text_ex(&fps_text, 10.0, 20.0, fps_params.clone()); // Use clone if needed elsewhere
+
         if let Some(msg) = announcement {
             self.draw_announcement(msg);
         }
@@ -549,55 +612,6 @@ void main() {
         let turret_rad = interp_turret_deg.to_radians() as f32;
         let turret_end = center_pos + Vec2::new(turret_rad.cos(), turret_rad.sin()) * radius * 0.8;
         draw_line(center_pos.x, center_pos.y, turret_end.x, turret_end.y, 2.0, faded_color(LIGHTGRAY, 1.0));
-
-        // Draw scanner area using a custom mesh and material
-        if let Some(scanner_material) = &self.scanner_material {
-            let scanner_range = (robot.turret.scanner.range * arena_screen_width.min(arena_screen_height) as f64) as f32;
-            let scanner_fov_deg = robot.turret.scanner.fov as f32;
-            let start_angle_deg = interp_turret_deg as f32 - scanner_fov_deg / 2.0;
-            let base_scanner_color = faded_color(body_color, 0.15); // Set alpha to 0.15
-
-            // Premultiply color for the chosen blend mode
-            let scanner_color = Color::new(
-                base_scanner_color.r * base_scanner_color.a,
-                base_scanner_color.g * base_scanner_color.a,
-                base_scanner_color.b * base_scanner_color.a,
-                base_scanner_color.a,
-            );
-
-            let num_segments = 20; // Number of segments for the arc
-            let mut vertices: Vec<Vertex> = Vec::with_capacity(num_segments + 2);
-            let mut indices: Vec<u16> = Vec::with_capacity(num_segments * 3);
-
-            // Center vertex
-            vertices.push(Vertex::new(center_pos.x, center_pos.y, 0.0, 0.0, 0.0, scanner_color));
-
-            // Arc vertices
-            for i in 0..=num_segments {
-                let t = i as f32 / num_segments as f32;
-                let angle_deg = start_angle_deg + t * scanner_fov_deg;
-                let angle_rad = angle_deg.to_radians();
-                let point_on_arc = center_pos + Vec2::new(angle_rad.cos(), angle_rad.sin()) * scanner_range;
-                vertices.push(Vertex::new(point_on_arc.x, point_on_arc.y, 0.0, 0.0, 0.0, scanner_color));
-            }
-
-            // Triangle fan indices (0, 1, 2), (0, 2, 3), ...
-            for i in 1..=num_segments {
-                indices.push(0); // Center vertex
-                indices.push(i as u16);
-                indices.push(i as u16 + 1);
-            }
-
-            let mesh = Mesh {
-                vertices,
-                indices,
-                texture: None, // No texture needed
-            };
-
-            gl_use_material(scanner_material); // Use custom blend mode material
-            draw_mesh(&mesh); // Draw the custom mesh (Correct function name)
-            gl_use_default_material(); // Switch back to default material/blend state
-        }
     }
 
     fn draw_triangle_at_angle(
@@ -685,11 +699,6 @@ void main() {
             font: self.ui_font.as_ref(), // Use UI font
             ..default_params
         };
-        let small_gray_params = TextParams {
-            font: self.ui_font.as_ref(), // Use UI font
-            color: LIGHTGRAY,
-            ..small_params
-        };
         let small_white_params = TextParams {
             font: self.ui_font.as_ref(), // Use UI font
             color: WHITE,
@@ -704,8 +713,29 @@ void main() {
 
         // Panel drop shadow
         draw_rectangle(panel_x + 6.0, 8.0, panel_width, WINDOW_HEIGHT as f32 - 16.0, Color::from_rgba(0, 0, 0, 60));
-        // Panel background
-        draw_rectangle(panel_x, 0.0, panel_width, WINDOW_HEIGHT as f32, faded_color(Color::from_rgba(32, 36, 48, 255), 1.0));
+        // Panel background (Dark Indigo)
+        draw_rectangle(panel_x, 0.0, panel_width, WINDOW_HEIGHT as f32, Color::from_rgba(20, 20, 50, 255));
+        
+        // --- Add Faint Grid Pattern ---
+        let grid_spacing = 20.0;
+        let grid_color = Color::from_rgba(40, 40, 90, 80); // Lighter indigo, low opacity
+        let line_thickness = 1.0;
+        let panel_end_x = panel_x + panel_width;
+        let panel_end_y = WINDOW_HEIGHT as f32;
+
+        // Vertical lines
+        let mut grid_x = panel_x + grid_spacing;
+        while grid_x < panel_end_x {
+            draw_line(grid_x, 0.0, grid_x, panel_end_y, line_thickness, grid_color);
+            grid_x += grid_spacing;
+        }
+        // Horizontal lines
+        let mut grid_y = grid_spacing;
+        while grid_y < panel_end_y {
+            draw_line(panel_x, grid_y, panel_end_x, grid_y, line_thickness, grid_color);
+            grid_y += grid_spacing;
+        }
+        // --- End Grid Pattern ---
         
         // Title - Use custom font here only
         let title_params = TextParams {
@@ -717,32 +747,46 @@ void main() {
         draw_text_ex("BOT ARENA", panel_x + padding, y + 12.0, title_params); // Use title_params + 5.0px offset
         y += font_size + padding * 0.5;
         
-        // Turn meter - Use default font params
+        // --- Turn/Cycle Meters (HUD Style) ---
+        let meter_label_y = y; 
         let bar_x = panel_x + padding;
         let bar_width = panel_width - 2.0 * padding;
-        let bar_height = 12.0;
-        let turn_ratio = current_turn as f32 / max_turns as f32;
-        draw_text_ex("TURN", bar_x, y, small_white_params.clone());
-        let turn_label_y = y;
-        let turn_bar_y = turn_label_y + small_font_size - 14.0 + 1.0;
-        draw_rectangle(bar_x, turn_bar_y, bar_width, bar_height, Color::from_rgba(44, 48, 60, 255));
-        draw_rectangle(bar_x, turn_bar_y, bar_width * turn_ratio, bar_height, GREEN);
+        let thin_bar_height = 3.0; // Height for the narrow bars
+        let label_bar_spacing = 4.0; // Added 2px space between text line and bar
+
+        // -- Turn Meter --
+        draw_text_ex("TURN", bar_x, meter_label_y, small_white_params.clone());
         let turn_text = format!("{}/{}", current_turn, max_turns);
         let turn_text_dims = measure_text(&turn_text, self.ui_font.as_ref(), small_value_params.font_size, 1.0);
-        draw_text_ex(&turn_text, bar_x + bar_width - turn_text_dims.width - 2.0, turn_bar_y + bar_height * 0.7 + 1.0, small_value_params.clone());
-        y = turn_bar_y + bar_height + 8.0;
-        // Cycle meter - Use default font params
-        let cycle_ratio = current_cycle as f32 / cycles_per_turn as f32;
-        let cycle_label_y = y + 4.0;
-        draw_text_ex("CYCLE", bar_x, cycle_label_y, small_white_params.clone());
-        let cycle_bar_y = cycle_label_y + small_font_size - 14.0 + 2.0;
-        draw_rectangle(bar_x, cycle_bar_y, bar_width, bar_height, Color::from_rgba(44, 48, 60, 255));
-        draw_rectangle(bar_x, cycle_bar_y, bar_width * cycle_ratio, bar_height, SKYBLUE);
+        let turn_text_x = panel_x + panel_width - padding - turn_text_dims.width;
+        draw_text_ex(&turn_text, turn_text_x, meter_label_y, small_value_params.clone());
+
+        // Position bar relative to text baseline + spacing
+        let turn_bar_y = meter_label_y + label_bar_spacing; 
+        let turn_ratio = current_turn as f32 / max_turns as f32;
+        draw_rectangle(bar_x, turn_bar_y, bar_width, thin_bar_height, Color::from_rgba(44, 48, 60, 255)); // Darker background
+        draw_rectangle(bar_x, turn_bar_y, bar_width * turn_ratio, thin_bar_height, GREEN);
+        
+        // Update y position for Cycle Meter, adding 4px more space (total +6px)
+        let cycle_meter_y = turn_bar_y + thin_bar_height + padding + 6.0;
+
+        // -- Cycle Meter --
+        draw_text_ex("CYCLE", bar_x, cycle_meter_y, small_white_params.clone());
         let cycle_text = format!("{}/{}", current_cycle, cycles_per_turn);
         let cycle_text_dims = measure_text(&cycle_text, self.ui_font.as_ref(), small_value_params.font_size, 1.0);
-        draw_text_ex(&cycle_text, bar_x + bar_width - cycle_text_dims.width - 2.0, cycle_bar_y + bar_height * 0.7 + 1.0, small_value_params.clone());
-        y = cycle_bar_y + bar_height + padding * 0.5;
-        // Robot cards - Use default font params
+        let cycle_text_x = panel_x + panel_width - padding - cycle_text_dims.width;
+        draw_text_ex(&cycle_text, cycle_text_x, cycle_meter_y, small_value_params.clone());
+
+        // Position bar relative to text baseline + spacing
+        let cycle_bar_y = cycle_meter_y + label_bar_spacing;
+        let cycle_ratio = current_cycle as f32 / cycles_per_turn as f32;
+        draw_rectangle(bar_x, cycle_bar_y, bar_width, thin_bar_height, Color::from_rgba(44, 48, 60, 255)); // Darker background
+        draw_rectangle(bar_x, cycle_bar_y, bar_width * cycle_ratio, thin_bar_height, SKYBLUE);
+        
+        // Update y for Robot Cards, adding 2px more space
+        y = cycle_bar_y + thin_bar_height + padding * 1.5 + 2.0;
+
+        // --- Robot Cards --- 
         let card_height = 124.0;
         let card_spacing = padding; // Use general padding for card spacing
         for robot in robots {
@@ -754,75 +798,109 @@ void main() {
                 4 => faded_color(Color::from_rgba(140, 120, 20, 255), 1.0),
                 _ => faded_color(Color::from_rgba(100, 50, 100, 255), 1.0),
             };
-            // Card drop shadow
+            // Card drop shadow (keep solid for contrast)
             draw_rectangle(panel_x + padding + 3.0, card_y + 3.0, panel_width - 2.0 * padding, card_height, Color::from_rgba(0, 0, 0, 40));
-            // Card background
-            draw_rectangle(panel_x + padding, card_y, panel_width - 2.0 * padding, card_height, faded_color(Color::from_rgba(40, 44, 60, 255), 1.0));
+            
+            // Calculate dark background color based on robot_color
+            let dark_robot_color = Color {
+                r: robot_color.r * 0.30, // Keep brightness factor
+                g: robot_color.g * 0.30, // Keep brightness factor
+                b: robot_color.b * 0.30, // Keep brightness factor
+                a: 0.35, // Even more transparent
+            };
+            
+            // Draw Card background using the calculated dark color
+            draw_rectangle(panel_x + padding, card_y, panel_width - 2.0 * padding, card_height, dark_robot_color);
+            
+            // Card border (keep solid for definition)
             draw_rectangle_lines(panel_x + padding, card_y, panel_width - 2.0 * padding, card_height, 2.0, robot_color);
-            // Header bar
-            let header_height = 28.0;
-            draw_rectangle(panel_x + padding, card_y, panel_width - 2.0 * padding, header_height, robot_color);
-            // Vertically center robot ID and status in header
-            let header_center_y = card_y + header_height / 2.0 + small_font_size / 2.2 - 2.0;
-            let name_text = format!("ROBOT {}", robot.id);
-            draw_text_ex(&name_text, panel_x + padding * 2.0, header_center_y, small_white_params.clone());
-            let status_text = format!("{:?}", robot.status);
-            let status_text_dims = measure_text(&status_text, self.ui_font.as_ref(), small_white_params.font_size, 1.0);
-            draw_text_ex(&status_text, panel_x + panel_width - padding * 2.0 - status_text_dims.width, header_center_y, small_white_params.clone());
+
+            // --- Draw Robot Name at top (using title font, clipped) --- 
+            let top_content_y = card_y + padding + 12.0; // Position below top padding + 12px offset
             
-            // Define layout constants
+            // Define parameters for the robot name
+            let robot_name_font_size = 20.0;
+            let robot_name_params = TextParams {
+                font: self.title_font.as_ref(), // Use title font
+                font_size: robot_name_font_size as u16,
+                color: WHITE, // Keep white for now
+                ..Default::default()
+            };
+
+            // Define inner padding here as it's needed for name drawing
             let card_inner_padding_x = padding * 2.0;
+
+            // --- Draw Robot Name (No Clipping, No Shadow) --- 
+            // Draw main text (white, original position)
+            draw_text_ex(&robot.name, panel_x + card_inner_padding_x, top_content_y, robot_name_params.clone()); 
+
+            // Start drawing main content below the Name line
+            let row_v_spacing = 4.0; // Set spacing between elements to 4px
+
+            // Define other layout constants needed below
             let card_bar_width = panel_width - 2.0 * card_inner_padding_x;
-            let bar_height = 12.0;
-            let label_to_bar_y_offset = 2.0; // How far below label start the bar starts
-            let bar_value_pad_x = 4.0; // Right padding for value in bar
-            let value_font_size = small_value_params.font_size as f32;
-            let value_in_bar_y_offset = bar_height * 0.85; // Offset for value text within bar height
-            let row_v_spacing = 15.0; // Added 2px more vertical space between rows
-            let label_to_instr_y_offset = small_font_size + 2.0; // Space between INSTR label and its value
+            let bar_height = 6.0; // Halved bar height
 
-            // Start drawing below the header (uses row_v_spacing)
-            let mut current_y = card_y + header_height + row_v_spacing;
-
-            // --- Health --- 
-            let health_label_y = current_y;
-            draw_text_ex("HEALTH", panel_x + card_inner_padding_x, health_label_y, small_gray_params.clone());
-            
-            let health_bar_y = health_label_y + label_to_bar_y_offset;
+            // --- Health Bar --- 
+            let health_bar_y = top_content_y + row_v_spacing + 6.0; // Position bar 4px + 6px below name baseline
             let health_ratio = (robot.health / 100.0).clamp(0.0, 1.0) as f32;
-            draw_rectangle(panel_x + card_inner_padding_x, health_bar_y, card_bar_width, bar_height, Color::from_rgba(54, 58, 70, 255));
-            draw_rectangle(panel_x + card_inner_padding_x, health_bar_y, card_bar_width * health_ratio, bar_height, RED);
+            draw_rectangle(panel_x + card_inner_padding_x, health_bar_y, card_bar_width, bar_height, Color::from_rgba(54, 58, 70, 255)); // Background
             
-            let health_val = format!("{:.1}", robot.health);
-            let health_val_dims = measure_text(&health_val, self.ui_font.as_ref(), value_font_size as u16, 1.0);
-            draw_text_ex(&health_val, panel_x + card_inner_padding_x + card_bar_width - health_val_dims.width - bar_value_pad_x, health_bar_y + value_in_bar_y_offset, small_value_params.clone());
-            
-            // Update current_y to below the health bar + spacing
-            current_y = health_bar_y + bar_height + row_v_spacing;
+            // Draw segmented health bar with gradient
+            let num_health_segments = 10;
+            let segment_gap = 1.0;
+            let total_gap_width = segment_gap * (num_health_segments - 1) as f32;
+            let segment_width = (card_bar_width - total_gap_width) / num_health_segments as f32;
+            let filled_health_segments = (health_ratio * num_health_segments as f32).ceil() as i32;
 
-            // --- Power --- 
-            let power_label_y = current_y;
-            draw_text_ex("POWER", panel_x + card_inner_padding_x, power_label_y, small_gray_params.clone());
+            for i in 0..filled_health_segments {
+                let segment_x = panel_x + card_inner_padding_x + (segment_width + segment_gap) * i as f32;
+                let segment_ratio = (i + 1) as f32 / num_health_segments as f32; // Ratio at the end of this segment
+                let segment_color = get_health_gradient_color(segment_ratio);
+                // Clamp width for the last potentially partial segment
+                let current_segment_width = if i == filled_health_segments - 1 {
+                    // Calculate the width needed to represent the exact health_ratio
+                    (card_bar_width * health_ratio) - ((segment_width + segment_gap) * i as f32)
+                } else {
+                    segment_width
+                }.max(0.0);
+                draw_rectangle(segment_x, health_bar_y, current_segment_width, bar_height, segment_color);
+            }
             
-            let power_bar_y = power_label_y + label_to_bar_y_offset;
+            // --- Power Bar --- 
+            let power_bar_y = health_bar_y + bar_height + row_v_spacing; // Position 4px below health bar
             let power_ratio = (robot.power / 1.0).clamp(0.0, 1.0) as f32;
-            draw_rectangle(panel_x + card_inner_padding_x, power_bar_y, card_bar_width, bar_height, Color::from_rgba(54, 58, 70, 255));
-            draw_rectangle(panel_x + card_inner_padding_x, power_bar_y, card_bar_width * power_ratio, 12.0, Color::from_rgba(40, 80, 180, 255));
+            draw_rectangle(panel_x + card_inner_padding_x, power_bar_y, card_bar_width, bar_height, Color::from_rgba(54, 58, 70, 255)); // Background
             
-            let power_val = format!("{:.2}", robot.power);
-            let power_val_dims = measure_text(&power_val, self.ui_font.as_ref(), value_font_size as u16, 1.0);
-            draw_text_ex(&power_val, panel_x + card_inner_padding_x + card_bar_width - power_val_dims.width - bar_value_pad_x, power_bar_y + value_in_bar_y_offset, small_value_params.clone());
+            // Draw segmented power bar
+            let num_power_segments = 5;
+            let power_segment_gap = 1.0;
+            let total_power_gap_width = power_segment_gap * (num_power_segments - 1) as f32;
+            let power_segment_width = (card_bar_width - total_power_gap_width) / num_power_segments as f32;
+            let filled_power_segments = (power_ratio * num_power_segments as f32).ceil() as i32;
+            let power_color = Color::from_rgba(40, 80, 180, 255);
 
-            // Update current_y to below the power bar + spacing
-            current_y = power_bar_y + bar_height + row_v_spacing;
-
+            for i in 0..filled_power_segments {
+                let segment_x = panel_x + card_inner_padding_x + (power_segment_width + power_segment_gap) * i as f32;
+                // Clamp width for the last potentially partial segment
+                let current_segment_width = if i == filled_power_segments - 1 {
+                    (card_bar_width * power_ratio) - ((power_segment_width + power_segment_gap) * i as f32)
+                } else {
+                    power_segment_width
+                }.max(0.0);
+                draw_rectangle(segment_x, power_bar_y, current_segment_width, bar_height, power_color);
+            }
+            
             // --- Current Instruction --- 
-            let instr_label_y = current_y;
-            draw_text_ex("INSTR", panel_x + card_inner_padding_x, instr_label_y, small_gray_params.clone());
-            
             let instr_str = robot.get_current_instruction_string();
-            let instr_val_y = instr_label_y + label_to_instr_y_offset; 
-            draw_text_ex(&instr_str, panel_x + card_inner_padding_x, instr_val_y, small_white_params.clone());
+            let instr_val_y = power_bar_y + bar_height + row_v_spacing + small_font_size; 
+            
+            // Define specific params for smaller instruction text
+            let instr_params = TextParams {
+                font_size: 12, // Reduced font size
+                ..small_white_params // Inherit font and color
+            };
+            draw_text_ex(&instr_str, panel_x + card_inner_padding_x, instr_val_y, instr_params.clone());
             
             // Update main y for next card
             y += card_height + card_spacing;

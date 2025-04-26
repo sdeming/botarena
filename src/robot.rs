@@ -62,6 +62,7 @@ impl Default for TurretComponent {
 #[derive(Debug, Clone)]
 pub struct Robot {
     pub id: u32, // Unique identifier
+    pub name: String, // Name derived from filename
     pub position: Point,
     pub prev_position: Point, // <-- Add previous position
     pub health: f64,
@@ -79,11 +80,12 @@ pub struct Robot {
 
 impl Robot {
     // Creates a new robot with default values at a given position
-    pub fn new(id: u32, position: Point) -> Self {
+    pub fn new(id: u32, name: String, position: Point) -> Self {
         let initial_drive_dir = 0.0;
         let initial_turret_dir = 0.0;
         Robot {
             id,
+            name, // Store the provided name
             position,
             prev_position: position,
             health: config::DEFAULT_INITIAL_HEALTH,
@@ -947,7 +949,7 @@ mod tests {
         arena.obstacles.clear(); // Make sure there are no obstacles
         
         // Position the robot farther from the edge at (1.0, 1.0) to ensure it can move a full unit
-        let mut robot = Robot::new(0, Point { x: 1.0, y: 1.0 });
+        let mut robot = Robot::new(0, String::new(), Point { x: 1.0, y: 1.0 });
         let mut command_queue = VecDeque::new();
 
         // Print arena size
@@ -1068,7 +1070,7 @@ mod tests {
         arena.obstacles.clear(); // Make sure there are no obstacles
         
         // Position the robot away from the edges
-        let mut robot = Robot::new(0, Point { x: 1.0, y: 1.0 });
+        let mut robot = Robot::new(0, String::new(), Point { x: 1.0, y: 1.0 });
         let mut command_queue = VecDeque::new();
 
         // First select drive component
@@ -1116,7 +1118,7 @@ mod tests {
 
     #[test]
     fn test_component_switching() {
-        let mut robot = Robot::new(0, Point { x: 0.5, y: 0.5 });
+        let mut robot = Robot::new(0, String::new(), Point { x: 0.5, y: 0.5 });
         let arena = Arena::default();
         let mut command_queue = VecDeque::new();
 
@@ -1167,7 +1169,7 @@ mod tests {
 
     #[test]
     fn test_program_errors() {
-        let mut robot = Robot::new(0, Point { x: 0.5, y: 0.5 });
+        let mut robot = Robot::new(0, String::new(), Point { x: 0.5, y: 0.5 });
         let arena = Arena::default();
         let mut command_queue = VecDeque::new();
 
@@ -1203,7 +1205,7 @@ mod tests {
 
     #[test]
     fn test_register_interaction() {
-        let mut robot = Robot::new(0, Point { x: 0.5, y: 0.5 });
+        let mut robot = Robot::new(0, String::new(), Point { x: 0.5, y: 0.5 });
         let arena = Arena::default();
 
         let program = parse_program(
@@ -1226,7 +1228,7 @@ mod tests {
 
     #[test]
     fn test_fire_weapon() {
-        let mut robot = Robot::new(0, Point { x: 0.5, y: 0.5 });
+        let mut robot = Robot::new(0, String::new(), Point { x: 0.5, y: 0.5 });
         let arena = Arena::default();
         let mut command_queue = VecDeque::new();
 

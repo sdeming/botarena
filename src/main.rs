@@ -42,6 +42,7 @@ fn window_conf() -> Conf {
         window_width: (ARENA_WIDTH + UI_PANEL_WIDTH) as i32,
         window_height: WINDOW_HEIGHT as i32,
         window_resizable: false,
+        high_dpi: true,
         ..Default::default()
     }
 }
