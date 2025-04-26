@@ -122,27 +122,32 @@ mod tests {
     use crate::vm::registers::Register;
     use std::collections::VecDeque;
 
-    fn setup() -> (Robot, Arena, VecDeque<ArenaCommand>) {
-        let mut robot = Robot::new(0, Point { x: 0.5, y: 0.5 });
+    fn execute_instruction(
+        robot: &mut Robot,
+        arena: &Arena,
+        instruction: &Instruction,
+        command_queue: &mut VecDeque<ArenaCommand>,
+    ) -> Result<(), VMFault> {
+        let executor = InstructionExecutor::new();
+        let all_robots = vec![];
+        executor.execute_instruction(robot, &all_robots, arena, instruction, command_queue)
+    }
+
+    fn setup_vm_state() -> (Robot, Arena, VecDeque<ArenaCommand>) {
+        let mut robot = Robot::new(0, "TestRobot".to_string(), Point { x: 0.5, y: 0.5 });
         let arena = Arena::new();
         let command_queue = VecDeque::new();
-
-        // Initialize registers for testing
-        robot.vm_state.registers.set(Register::D0, 42.0).unwrap();
-        robot.vm_state.registers.set(Register::D1, 10.0).unwrap();
-
-        // Initialize memory for testing Lod/Sto operations
-        // Set @index register to start memory ops
+        robot.vm_state.memory[0] = 5.0;
+        robot.vm_state.memory[1] = 10.0;
+        robot.vm_state.memory[2] = 15.0;
         robot.vm_state.registers.set(Register::Index, 0.0).unwrap();
+        (robot, arena, command_queue)
+    }
 
-        // Set some test values in memory
-        robot.vm_state.store_memory_at_index(5.0).unwrap(); // Store at index 0
-        robot.vm_state.store_memory_at_index(10.0).unwrap(); // Store at index 1
-        robot.vm_state.store_memory_at_index(15.0).unwrap(); // Store at index 2
-
-        // Reset index to 0 for tests
-        robot.vm_state.registers.set(Register::Index, 0.0).unwrap();
-
+    fn setup_test_vm() -> (Robot, Arena, VecDeque<ArenaCommand>) {
+        let robot = Robot::new(1, "TestRobot".to_string(), Point { x: 0.0, y: 0.0 });
+        let arena = Arena::new();
+        let command_queue = VecDeque::new();
         (robot, arena, command_queue)
     }
 
@@ -162,7 +167,7 @@ mod tests {
 
     #[test]
     fn test_mov_value_to_register() {
-        let (mut robot, arena, mut command_queue) = setup();
+        let (mut robot, arena, mut command_queue) = setup_vm_state();
         let processor = RegisterOperations::new();
         let all_robots = vec![];
 
@@ -180,7 +185,7 @@ mod tests {
 
     #[test]
     fn test_mov_register_to_register() {
-        let (mut robot, arena, mut command_queue) = setup();
+        let (mut robot, arena, mut command_queue) = setup_vm_state();
         let processor = RegisterOperations::new();
         let all_robots = vec![];
 
@@ -201,7 +206,7 @@ mod tests {
 
     #[test]
     fn test_mov_to_readonly_register() {
-        let (mut robot, arena, mut command_queue) = setup();
+        let (mut robot, arena, mut command_queue) = setup_vm_state();
         let processor = RegisterOperations::new();
         let all_robots = vec![];
 
@@ -220,44 +225,24 @@ mod tests {
 
     #[test]
     fn test_lod_instruction() {
-        let (mut robot, arena, mut command_queue) = setup();
-        let processor = RegisterOperations::new();
-        let all_robots = vec![];
+        let (mut robot, arena, mut command_queue) = setup_vm_state();
+        
+        let result_lod1 = execute_instruction(&mut robot, &arena, &Instruction::Lod(Register::D2), &mut command_queue);
+        assert!(result_lod1.is_ok(), "First Lod failed");
 
-        // Index is already set to 0, where we stored value 5.0
-
-        let result = processor.process(
-            &mut robot,
-            &all_robots,
-            &arena,
-            &Instruction::Lod(Register::D2),
-            &mut command_queue,
-        );
-
-        assert!(result.is_ok());
-        // Should load 5.0 from memory[0] into Register::D2
         assert_eq!(robot.vm_state.registers.get(Register::D2).unwrap(), 5.0);
-
-        // Index should auto-increment to 1
         assert_eq!(robot.vm_state.registers.get(Register::Index).unwrap(), 1.0);
 
-        // Test another load, should load from memory[1] which has 10.0
-        let result = processor.process(
-            &mut robot,
-            &all_robots,
-            &arena,
-            &Instruction::Lod(Register::D3),
-            &mut command_queue,
-        );
-
-        assert!(result.is_ok());
+        let result_lod2 = execute_instruction(&mut robot, &arena, &Instruction::Lod(Register::D3), &mut command_queue);
+        assert!(result_lod2.is_ok(), "Second Lod failed");
+        
         assert_eq!(robot.vm_state.registers.get(Register::D3).unwrap(), 10.0);
         assert_eq!(robot.vm_state.registers.get(Register::Index).unwrap(), 2.0);
     }
 
     #[test]
     fn test_sto_instruction() {
-        let (mut robot, arena, mut command_queue) = setup();
+        let (mut robot, arena, mut command_queue) = setup_vm_state();
         let processor = RegisterOperations::new();
         let all_robots = vec![];
 
@@ -295,7 +280,7 @@ mod tests {
 
     #[test]
     fn test_cmp_instruction_equal() {
-        let (mut robot, arena, mut command_queue) = setup();
+        let (mut robot, arena, mut command_queue) = setup_vm_state();
         let processor = RegisterOperations::new();
         let all_robots = vec![];
 
@@ -314,7 +299,7 @@ mod tests {
 
     #[test]
     fn test_cmp_instruction_greater() {
-        let (mut robot, arena, mut command_queue) = setup();
+        let (mut robot, arena, mut command_queue) = setup_vm_state();
         let processor = RegisterOperations::new();
         let all_robots = vec![];
 
@@ -336,7 +321,7 @@ mod tests {
 
     #[test]
     fn test_cmp_instruction_less() {
-        let (mut robot, arena, mut command_queue) = setup();
+        let (mut robot, arena, mut command_queue) = setup_vm_state();
         let processor = RegisterOperations::new();
         let all_robots = vec![];
 
@@ -359,7 +344,7 @@ mod tests {
     #[test]
     fn test_memory_operations_integration() {
         let mut queue = VecDeque::new();
-        let mut robot = Robot::new(1, Point { x: 0.0, y: 0.0 }); // Create a simple test robot
+        let mut robot = Robot::new(1, "TestRobot".to_string(), Point { x: 0.0, y: 0.0 }); // Create a simple test robot
         let arena = Arena::new(); // Use the default constructor
         let empty_robots = Vec::new();
         let executor = InstructionExecutor::new();

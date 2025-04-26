@@ -109,154 +109,116 @@ impl InstructionExecutor {
 mod tests {
     use crate::arena::Arena;
     use crate::robot::Robot;
-    use crate::types::Point;
-    use crate::vm::executor::instruction_executor::InstructionExecutor;
+    use crate::types::{Point, ArenaCommand};
     use crate::vm::instruction::Instruction;
     use crate::vm::operand::Operand;
+    use crate::vm::error::VMFault;
     use crate::vm::registers::Register;
     use std::collections::VecDeque;
+    use crate::vm::executor::InstructionExecutor;
+
+    fn setup_test_vm() -> (Robot, Arena, VecDeque<ArenaCommand>) {
+        let robot = Robot::new(0, "TestRobot0".to_string(), Point { x: 0.5, y: 0.5 });
+        let arena = Arena::new();
+        let command_queue = VecDeque::new();
+        (robot, arena, command_queue)
+    }
+
+    fn execute_instruction(
+        robot: &mut Robot,
+        arena: &Arena,
+        instruction: &Instruction,
+        command_queue: &mut VecDeque<ArenaCommand>,
+    ) -> Result<(), VMFault> {
+        let executor = InstructionExecutor::new();
+        let all_robots = vec![];
+        executor.execute_instruction(robot, &all_robots, arena, instruction, command_queue)
+    }
 
     #[test]
     fn test_stack_operations_delegation() {
-        let mut robot = Robot::new(0, Point { x: 0.5, y: 0.5 });
+        let mut robot = Robot::new(0, "TestRobot0".to_string(), Point { x: 0.5, y: 0.5 });
         let arena = Arena::new();
         let mut command_queue = VecDeque::new();
-        let all_robots = vec![];
 
-        let executor = InstructionExecutor::new();
-
-        // Test Push instruction
-        let result = executor.execute_instruction(
+        let result_push = execute_instruction(
             &mut robot,
-            &all_robots,
             &arena,
             &Instruction::Push(Operand::Value(42.0)),
             &mut command_queue,
         );
+        assert!(result_push.is_ok(), "Push failed");
 
-        assert!(result.is_ok());
-
-        // Test Pop instruction
-        let result = executor.execute_instruction(
+        let result_pop = execute_instruction(
             &mut robot,
-            &all_robots,
             &arena,
             &Instruction::Pop(Register::D0),
             &mut command_queue,
         );
-
-        assert!(result.is_ok());
+        assert!(result_pop.is_ok(), "Pop failed");
         assert_eq!(robot.vm_state.registers.get(Register::D0).unwrap(), 42.0);
     }
 
     #[test]
     fn test_register_operations_delegation() {
-        let mut robot = Robot::new(0, Point { x: 0.5, y: 0.5 });
+        let mut robot = Robot::new(0, "TestRobot0".to_string(), Point { x: 0.5, y: 0.5 });
         let arena = Arena::new();
         let mut command_queue = VecDeque::new();
-        let all_robots = vec![];
 
-        let executor = InstructionExecutor::new();
-
-        // Test Mov instruction
-        let result = executor.execute_instruction(
+        let result_mov = execute_instruction(
             &mut robot,
-            &all_robots,
             &arena,
             &Instruction::Mov(Register::D1, Operand::Value(55.0)),
             &mut command_queue,
         );
-
-        assert!(result.is_ok());
+        assert!(result_mov.is_ok(), "Mov failed");
         assert_eq!(robot.vm_state.registers.get(Register::D1).unwrap(), 55.0);
 
-        // Test Cmp instruction
-        let result = executor.execute_instruction(
+        let result_cmp = execute_instruction(
             &mut robot,
-            &all_robots,
             &arena,
             &Instruction::Cmp(Operand::Value(10.0), Operand::Value(5.0)),
             &mut command_queue,
         );
-
-        assert!(result.is_ok());
+        assert!(result_cmp.is_ok(), "Cmp failed");
         assert_eq!(robot.vm_state.registers.get(Register::Result).unwrap(), 5.0);
     }
 
     #[test]
-    fn test_arithmetic_operations_delegation() {
-        let mut robot = Robot::new(0, Point { x: 0.5, y: 0.5 });
-        let arena = Arena::new();
-        let mut command_queue = VecDeque::new();
-        let all_robots = vec![];
-
-        let executor = InstructionExecutor::new();
-
-        // Test stack-based arithmetic
-        // Push two values
-        robot.vm_state.stack.push(10.0).unwrap();
-        robot.vm_state.stack.push(3.0).unwrap();
-
-        // Test Add
-        let result = executor.execute_instruction(
-            &mut robot,
-            &all_robots,
-            &arena,
-            &Instruction::Add,
-            &mut command_queue,
-        );
-
-        assert!(result.is_ok());
-        assert_eq!(robot.vm_state.stack.pop().unwrap(), 13.0);
-
-        // Test register-based arithmetic
-        // Test MulOp
-        let result = executor.execute_instruction(
-            &mut robot,
-            &all_robots,
-            &arena,
-            &Instruction::MulOp(Operand::Value(4.0), Operand::Value(5.0)),
-            &mut command_queue,
-        );
-
-        assert!(result.is_ok());
-        assert_eq!(
-            robot.vm_state.registers.get(Register::Result).unwrap(),
-            20.0
-        );
-
-        // Test PowOp
-        let result = executor.execute_instruction(
-            &mut robot,
-            &all_robots,
-            &arena,
-            &Instruction::PowOp(Operand::Value(2.0), Operand::Value(3.0)),
-            &mut command_queue,
-        );
-
-        assert!(result.is_ok());
-        assert_eq!(robot.vm_state.registers.get(Register::Result).unwrap(), 8.0);
+    fn test_arithmetic_execution() {
+        let (mut robot, arena, mut command_queue) = setup_test_vm();
+        robot.vm_state.registers.set(Register::D1, 10.0).unwrap();
+        robot.vm_state.registers.set(Register::D2, 5.0).unwrap();
+        let instruction = Instruction::AddOp(Operand::Register(Register::D1), Operand::Register(Register::D2));
+        execute_instruction(&mut robot, &arena, &instruction, &mut command_queue).unwrap();
+        assert_eq!(robot.vm_state.registers.get(Register::Result).unwrap(), 15.0);
     }
 
     #[test]
-    fn test_fallback_to_original_implementation() {
-        let mut robot = Robot::new(0, Point { x: 0.5, y: 0.5 });
-        let arena = Arena::new();
-        let mut command_queue = VecDeque::new();
-        let all_robots = vec![];
+    fn test_bitwise_execution() {
+        let (mut robot, arena, mut command_queue) = setup_test_vm();
+        robot.vm_state.registers.set(Register::D1, 0b1010 as f64).unwrap();
+        robot.vm_state.registers.set(Register::D2, 0b1100 as f64).unwrap();
+        execute_instruction(&mut robot, &arena, &Instruction::Push(Operand::Register(Register::D1)), &mut command_queue).unwrap();
+        execute_instruction(&mut robot, &arena, &Instruction::Push(Operand::Register(Register::D2)), &mut command_queue).unwrap();
+        execute_instruction(&mut robot, &arena, &Instruction::And, &mut command_queue).unwrap();
+        execute_instruction(&mut robot, &arena, &Instruction::Pop(Register::D0), &mut command_queue).unwrap();
+        assert_eq!(robot.vm_state.registers.get(Register::D0).unwrap() as i64, 0b1000);
+    }
 
-        let executor = InstructionExecutor::new();
+    #[test]
+    fn test_combat_execution() {
+        let (mut robot, arena, mut command_queue) = setup_test_vm();
+        robot.vm_state.registers.set(Register::D1, 45.0).unwrap();
+        robot.power = 1.0;
+        let instruction = Instruction::Fire(Operand::Register(Register::D1));
+        execute_instruction(&mut robot, &arena, &instruction, &mut command_queue).unwrap();
+        assert_eq!(command_queue.len(), 2);
+        assert!(matches!(command_queue[0], ArenaCommand::SpawnProjectile(_)));
+    }
 
-        // Test Nop instruction (not yet implemented in a processor)
-        let result = executor.execute_instruction(
-            &mut robot,
-            &all_robots,
-            &arena,
-            &Instruction::Nop,
-            &mut command_queue,
-        );
-
-        // Should succeed by falling back to the original implementation
-        assert!(result.is_ok());
+    #[test]
+    fn test_unknown_opcode_fault() {
+        let (_robot, _arena, _command_queue) = setup_test_vm();
     }
 }

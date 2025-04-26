@@ -78,7 +78,7 @@ mod tests {
     use std::collections::VecDeque;
 
     fn setup() -> (Robot, Arena, VecDeque<ArenaCommand>) {
-        let robot = Robot::new(1, Point { x: 0.5, y: 0.5 });
+        let robot = Robot::new(1, "TestRobot".to_string(), Point { x: 0.5, y: 0.5 });
         let arena = Arena::new();
         let command_queue = VecDeque::new();
 

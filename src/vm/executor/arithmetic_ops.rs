@@ -333,7 +333,7 @@ mod tests {
     use std::collections::VecDeque;
 
     fn setup() -> (Robot, Arena, VecDeque<ArenaCommand>) {
-        let mut robot = Robot::new(0, Point { x: 0.5, y: 0.5 });
+        let mut robot = Robot::new(0, "TestRobot".to_string(), Point { x: 0.5, y: 0.5 });
         let arena = Arena::new();
         let command_queue = VecDeque::new();
 
@@ -799,7 +799,7 @@ mod tests {
 
     #[test]
     fn test_divmod_operation_integration() {
-        let mut robot = Robot::new(0, Point { x: 0.0, y: 0.0 });
+        let mut robot = Robot::new(0, "TestRobot".to_string(), Point { x: 0.0, y: 0.0 });
         let arena = Arena::new();
         let robots = vec![robot.clone()];
         let mut q = VecDeque::new();

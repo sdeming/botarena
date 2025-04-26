@@ -206,19 +206,17 @@ impl InstructionProcessor for ComponentOperations {
 
 #[cfg(test)]
 mod tests {
-    use crate::arena::Arena;
-    use crate::config;
+    use super::*;
     use crate::robot::{Robot, RobotStatus};
-    use crate::types::Point;
+    use crate::types::{Point, ArenaCommand};
+    use crate::arena::Arena;
     use crate::vm::error::VMFault;
-    use crate::vm::executor::{ComponentOperations, InstructionProcessor};
-    use crate::vm::instruction::Instruction;
     use crate::vm::operand::Operand;
-    use crate::vm::registers::Register;
+    use crate::vm::instruction::Instruction;
     use std::collections::VecDeque;
 
     fn create_test_robot() -> Robot {
-        let mut robot = Robot::new(1, Point { x: 0.5, y: 0.5 });
+        let mut robot = Robot::new(1, "TestRobot".to_string(), Point { x: 0.5, y: 0.5 });
         robot.status = RobotStatus::Active;
         robot
     }
@@ -400,5 +398,13 @@ mod tests {
 
         assert!(result.is_err());
         assert_eq!(result.unwrap_err(), VMFault::InvalidComponentForOp);
+    }
+
+    fn setup() -> (Robot, Arena, VecDeque<ArenaCommand>) {
+        // Robot with default components
+        let robot = Robot::new(1, "TestRobot".to_string(), Point { x: 0.5, y: 0.5 });
+        let arena = Arena::new();
+        let command_queue = VecDeque::new();
+        (robot, arena, command_queue)
     }
 }
