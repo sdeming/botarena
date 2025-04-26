@@ -381,8 +381,62 @@ void main() {
         // Draw arena elements normally (no special material here)
         Self::draw_arena_boundaries(arena, ARENA_WIDTH, ARENA_HEIGHT);
         Self::draw_obstacles(arena, ARENA_WIDTH, ARENA_HEIGHT);
+
+        // --- Draw Gridlines ---
+        if !robots.is_empty() {
+            // Calculate total health
+            let total_health: f64 = robots.iter().map(|r| r.health.max(0.0)).sum();
+
+            // Calculate weighted color mix
+            let mut final_r: f32 = 0.0;
+            let mut final_g: f32 = 0.0;
+            let mut final_b: f32 = 0.0;
+
+            if total_health > 0.0 {
+                for robot in robots {
+                    let base_color = match robot.id {
+                        1 => Color::from_rgba(40, 80, 140, 255),
+                        2 => Color::from_rgba(140, 40, 40, 255),
+                        3 => Color::from_rgba(40, 100, 40, 255),
+                        4 => Color::from_rgba(140, 120, 20, 255),
+                        _ => Color::from_rgba(100, 50, 100, 255),
+                    };
+                    let weight = (robot.health.max(0.0) / total_health) as f32;
+                    final_r += base_color.r * weight;
+                    final_g += base_color.g * weight;
+                    final_b += base_color.b * weight;
+                }
+            } else {
+                 // Default to gray if no robots have health (or no robots)
+                 final_r = 0.5;
+                 final_g = 0.5;
+                 final_b = 0.5;
+            }
+
+            let grid_color = Color::new(final_r, final_g, final_b, 0.4); // Use mixed color with desired alpha
+
+            let unit_screen_width = (UNIT_SIZE * ARENA_WIDTH as f64) as f32;
+            let unit_screen_height = (UNIT_SIZE * ARENA_HEIGHT as f64) as f32;
+
+            let num_cols = (ARENA_WIDTH as f32 / unit_screen_width).ceil() as u32;
+            let num_rows = (ARENA_HEIGHT as f32 / unit_screen_height).ceil() as u32;
+
+            // Draw vertical lines
+            for i in 1..num_cols {
+                let x = i as f32 * unit_screen_width;
+                draw_line(x, 0.0, x, ARENA_HEIGHT as f32, 1.0, grid_color);
+            }
+
+            // Draw horizontal lines
+            for i in 1..num_rows {
+                let y = i as f32 * unit_screen_height;
+                draw_line(0.0, y, ARENA_WIDTH as f32, y, 1.0, grid_color);
+            }
+        }
+        // --- End Gridlines ---
+
         for robot in robots {
-            self.draw_robot(robot, ARENA_WIDTH, ARENA_HEIGHT, alpha as f64); 
+            self.draw_robot(robot, ARENA_WIDTH, ARENA_HEIGHT, alpha as f64);
         }
         Self::draw_projectiles(arena, ARENA_WIDTH, ARENA_HEIGHT, alpha as f64);
         Self::draw_particles(particle_system, ARENA_WIDTH, ARENA_HEIGHT, alpha);
