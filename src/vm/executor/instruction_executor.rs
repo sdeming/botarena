@@ -118,8 +118,9 @@ mod tests {
     use crate::vm::executor::InstructionExecutor;
 
     fn setup_test_vm() -> (Robot, Arena, VecDeque<ArenaCommand>) {
-        let robot = Robot::new(0, "TestRobot0".to_string(), Point { x: 0.5, y: 0.5 });
         let arena = Arena::new();
+        let center = Point { x: arena.width / 2.0, y: arena.height / 2.0 };
+        let robot = Robot::new(0, "TestRobot0".to_string(), Point { x: 0.5, y: 0.5 }, center);
         let command_queue = VecDeque::new();
         (robot, arena, command_queue)
     }
@@ -137,8 +138,9 @@ mod tests {
 
     #[test]
     fn test_stack_operations_delegation() {
-        let mut robot = Robot::new(0, "TestRobot0".to_string(), Point { x: 0.5, y: 0.5 });
         let arena = Arena::new();
+        let center = Point { x: arena.width / 2.0, y: arena.height / 2.0 };
+        let mut robot = Robot::new(0, "TestRobot0".to_string(), Point { x: 0.5, y: 0.5 }, center);
         let mut command_queue = VecDeque::new();
 
         let result_push = execute_instruction(
@@ -161,8 +163,9 @@ mod tests {
 
     #[test]
     fn test_register_operations_delegation() {
-        let mut robot = Robot::new(0, "TestRobot0".to_string(), Point { x: 0.5, y: 0.5 });
         let arena = Arena::new();
+        let center = Point { x: arena.width / 2.0, y: arena.height / 2.0 };
+        let mut robot = Robot::new(0, "TestRobot0".to_string(), Point { x: 0.5, y: 0.5 }, center);
         let mut command_queue = VecDeque::new();
 
         let result_mov = execute_instruction(

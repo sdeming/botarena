@@ -110,16 +110,16 @@ impl InstructionProcessor for RegisterOperations {
 
 #[cfg(test)]
 mod tests {
+    use super::*;
     use crate::arena::Arena;
-    use crate::robot::Robot;
-    use crate::types::{ArenaCommand, Point};
+    use crate::robot::{Robot, RobotStatus};
+    use crate::types::{Point, ArenaCommand};
     use crate::vm::error::VMFault;
-    use crate::vm::executor::InstructionExecutor;
-    use crate::vm::executor::processor::InstructionProcessor;
-    use crate::vm::executor::register_ops::RegisterOperations;
+    use crate::vm::executor::{processor::InstructionProcessor, InstructionExecutor};
     use crate::vm::instruction::Instruction;
     use crate::vm::operand::Operand;
     use crate::vm::registers::Register;
+    use crate::vm::state::VMState;
     use std::collections::VecDeque;
 
     fn execute_instruction(
@@ -129,24 +129,42 @@ mod tests {
         command_queue: &mut VecDeque<ArenaCommand>,
     ) -> Result<(), VMFault> {
         let executor = InstructionExecutor::new();
-        let all_robots = vec![];
+        let all_robots = vec![]; // Use empty vec for register ops tests
         executor.execute_instruction(robot, &all_robots, arena, instruction, command_queue)
     }
 
     fn setup_vm_state() -> (Robot, Arena, VecDeque<ArenaCommand>) {
-        let mut robot = Robot::new(0, "TestRobot".to_string(), Point { x: 0.5, y: 0.5 });
         let arena = Arena::new();
+        let center = Point { x: arena.width / 2.0, y: arena.height / 2.0 };
+        let mut robot = Robot::new(0, "TestRobot".to_string(), Point { x: 0.5, y: 0.5 }, center);
         let command_queue = VecDeque::new();
+
+        // Initialize registers for testing
+        robot.vm_state.registers.set(Register::D0, 5.0).unwrap();
+        robot.vm_state.registers.set(Register::D1, 10.0).unwrap();
+        robot.vm_state.registers.set(Register::Result, 1.0).unwrap();
+        robot.vm_state.registers.set(Register::Index, 0.0).unwrap();
+
+        // Initialize memory for Lod/Sto tests
         robot.vm_state.memory[0] = 5.0;
         robot.vm_state.memory[1] = 10.0;
         robot.vm_state.memory[2] = 15.0;
-        robot.vm_state.registers.set(Register::Index, 0.0).unwrap();
+
         (robot, arena, command_queue)
     }
 
-    fn setup_test_vm() -> (Robot, Arena, VecDeque<ArenaCommand>) {
-        let robot = Robot::new(1, "TestRobot".to_string(), Point { x: 0.0, y: 0.0 });
+    fn setup_readonly_test() -> (Robot, Arena, VecDeque<ArenaCommand>) {
         let arena = Arena::new();
+        let center = Point { x: arena.width / 2.0, y: arena.height / 2.0 };
+        let robot = Robot::new(1, "TestRobot".to_string(), Point { x: 0.0, y: 0.0 }, center);
+        let command_queue = VecDeque::new();
+        (robot, arena, command_queue)
+    }
+
+    fn setup_index_test() -> (Robot, Arena, VecDeque<ArenaCommand>) {
+        let arena = Arena::new();
+        let center = Point { x: arena.width / 2.0, y: arena.height / 2.0 };
+        let mut robot = Robot::new(1, "TestRobot".to_string(), Point { x: 0.0, y: 0.0 }, center);
         let command_queue = VecDeque::new();
         (robot, arena, command_queue)
     }
@@ -344,8 +362,9 @@ mod tests {
     #[test]
     fn test_memory_operations_integration() {
         let mut queue = VecDeque::new();
-        let mut robot = Robot::new(1, "TestRobot".to_string(), Point { x: 0.0, y: 0.0 }); // Create a simple test robot
-        let arena = Arena::new(); // Use the default constructor
+        let arena = Arena::new(); // Define arena first
+        let center = Point { x: arena.width / 2.0, y: arena.height / 2.0 }; // Calculate center
+        let mut robot = Robot::new(1, "TestRobot".to_string(), Point { x: 0.0, y: 0.0 }, center); // Pass center
         let empty_robots = Vec::new();
         let executor = InstructionExecutor::new();
 

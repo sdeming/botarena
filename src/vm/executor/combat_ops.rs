@@ -7,6 +7,7 @@ use std::collections::VecDeque;
 
 use super::processor::InstructionProcessor;
 use crate::vm::instruction::Instruction;
+use crate::vm::executor::InstructionExecutor;
 
 /// Processor for robot combat operations
 pub struct CombatOperations;
@@ -137,25 +138,36 @@ where
 
 #[cfg(test)]
 mod tests {
+    use super::*;
+    use crate::types::Point;
+    use crate::robot::Robot;
     use crate::arena::Arena;
-    use crate::robot::{Robot, RobotStatus};
-    use crate::types::{ArenaCommand, Point};
-
-    use crate::vm::executor::{CombatOperations, InstructionProcessor};
     use crate::vm::instruction::Instruction;
     use crate::vm::operand::Operand;
     use crate::vm::registers::Register;
+    use crate::vm::error::VMFault;
     use std::collections::VecDeque;
+    use crate::types::ArenaCommand;
+    use crate::robot::RobotStatus;
+    use crate::vm::executor::InstructionExecutor;
 
+    // Helper function to create a test robot
     fn create_test_robot() -> Robot {
-        let mut robot = Robot::new(1, "TestRobot1".to_string(), Point { x: 0.5, y: 0.5 });
-        robot.status = RobotStatus::Active;
-        robot
+        let arena = Arena::new(); // Create a dummy arena to get center
+        let center = Point { x: arena.width / 2.0, y: arena.height / 2.0 };
+        Robot::new(1, "TestRobot1".to_string(), Point { x: 0.5, y: 0.5 }, center)
+    }
+
+    // Helper function to create a test robot at a specific position
+    fn create_test_robot_at(pos: Point, id: u32) -> Robot {
+        let arena = Arena::new(); // Create a dummy arena to get center
+        let center = Point { x: arena.width / 2.0, y: arena.height / 2.0 };
+        Robot::new(id, format!("TestRobot{}", id), pos, center)
     }
 
     fn create_test_robots() -> Vec<Robot> {
         vec![create_test_robot(), {
-            let mut r = Robot::new(2, "TestRobot2".to_string(), Point { x: 0.7, y: 0.5 });
+            let mut r = Robot::new(2, "TestRobot2".to_string(), Point { x: 0.7, y: 0.5 }, Point { x: 0.7, y: 0.5 });
             r.status = RobotStatus::Active;
             r
         }]
@@ -163,13 +175,13 @@ mod tests {
 
     fn setup_scan_scenario() -> (Robot, Arena, VecDeque<ArenaCommand>, Vec<Robot>) {
         // Robot 1 (scanning robot)
-        let robot = Robot::new(1, "TestRobot1".to_string(), Point { x: 0.5, y: 0.5 });
+        let robot = Robot::new(1, "TestRobot1".to_string(), Point { x: 0.5, y: 0.5 }, Point { x: 0.5, y: 0.5 });
         let command_queue = VecDeque::new();
         let arena = Arena::new();
         // Other robots to be scanned
         let robots_in_arena = vec![
             {
-                let mut r = Robot::new(2, "TestRobot2".to_string(), Point { x: 0.7, y: 0.5 });
+                let mut r = Robot::new(2, "TestRobot2".to_string(), Point { x: 0.7, y: 0.5 }, Point { x: 0.7, y: 0.5 });
                 r.status = RobotStatus::Active;
                 r
             },
@@ -181,8 +193,8 @@ mod tests {
     #[test]
     fn test_fire_instruction() {
         let mut robot = create_test_robot();
-        let mut command_queue = VecDeque::new();
         let arena = Arena::new();
+        let mut command_queue = VecDeque::new();
         let processor = CombatOperations::new();
 
         // Select turret component
@@ -221,8 +233,8 @@ mod tests {
     #[test]
     fn test_fire_insufficient_power() {
         let mut robot = create_test_robot();
-        let mut command_queue = VecDeque::new();
         let arena = Arena::new();
+        let mut command_queue = VecDeque::new();
         let processor = CombatOperations::new();
 
         // Select turret component
@@ -244,88 +256,87 @@ mod tests {
 
     #[test]
     fn test_scan_instruction() {
-        let mut robots = create_test_robots();
-        let mut robot = robots.remove(0);
-        let all_robots = robots; // This contains one other robot at (0.7, 0.5)
-
-        let mut command_queue = VecDeque::new();
-        let arena = Arena::new();
-        let processor = CombatOperations::new();
-
-        // Select turret component
+        let mut robot = create_test_robot();
         robot.vm_state.set_selected_component(2).unwrap();
+        let arena = Arena::new();
+        let mut command_queue = VecDeque::new();
 
-        // Execute scan instruction
+        // Create other robots for scanning
+        let other_robot_pos = Point { x: 0.7, y: 0.5 };
+        let mut other_robot = create_test_robot_at(other_robot_pos, 2);
+        other_robot.status = RobotStatus::Active;
+        let all_robots = vec![robot.clone(), other_robot];
+
+        let executor = InstructionExecutor::new();
+
+        // Execute scan instruction using the main executor
         let scan = Instruction::Scan;
-        let result = processor.process(&mut robot, &all_robots, &arena, &scan, &mut command_queue);
+        let result = executor.execute_instruction(
+            &mut robot, 
+            &all_robots,
+            &arena, 
+            &scan, 
+            &mut command_queue
+        );
 
         // Scan should succeed
         assert!(result.is_ok());
 
-        // Check that the target registers were updated
-        let distance = robot
-            .vm_state
-            .registers
-            .get(Register::TargetDistance)
-            .unwrap();
-        let direction = robot
-            .vm_state
-            .registers
-            .get(Register::TargetDirection)
-            .unwrap();
+        // Verify scan results in registers
+        let distance = robot.vm_state.registers.get(Register::TargetDistance).unwrap();
+        let angle = robot.vm_state.registers.get(Register::TargetDirection).unwrap();
 
-        // Other robot is at (0.7, 0.5), we're at (0.5, 0.5), so it should be detected
-        assert!(distance > 0.0); // Should have found something
-        assert!(distance < 0.3); // Distance should be about 0.2
-        assert_eq!(direction, 0.0); // Should be directly to the right
+        assert!(distance > 0.0, "Scan should have detected a target");
+        let expected_angle = (other_robot_pos.y - robot.position.y)
+            .atan2(other_robot_pos.x - robot.position.x)
+            .to_degrees()
+            .rem_euclid(360.0);
+        assert!((angle - expected_angle).abs() < 0.1, "Scan angle mismatch");
+        assert!((distance - robot.position.distance(&other_robot_pos)).abs() < 0.001, "Scan distance mismatch");
     }
 
     #[test]
     fn test_scan_no_targets() {
         let mut robot = create_test_robot();
-        let all_robots = vec![]; // No other robots
-
-        let mut command_queue = VecDeque::new();
-        let arena = Arena::new();
-        let processor = CombatOperations::new();
-
-        // Select turret component
         robot.vm_state.set_selected_component(2).unwrap();
+        let arena = Arena::new();
+        let mut command_queue = VecDeque::new();
+        let all_robots = vec![robot.clone()];
+        let executor = InstructionExecutor::new();
 
         // Execute scan instruction
         let scan = Instruction::Scan;
-        let result = processor.process(&mut robot, &all_robots, &arena, &scan, &mut command_queue);
+        let result = executor.execute_instruction(
+            &mut robot, 
+            &all_robots,
+            &arena, 
+            &scan, 
+            &mut command_queue
+        );
 
         // Scan should succeed even with no targets
         assert!(result.is_ok());
 
-        // Check target registers - should indicate no target found
-        let distance = robot
-            .vm_state
-            .registers
-            .get(Register::TargetDistance)
-            .unwrap();
-        assert_eq!(distance, 0.0); // 0 distance means no target found
+        // Verify scan results are zero
+        let distance = robot.vm_state.registers.get(Register::TargetDistance).unwrap();
+        let angle = robot.vm_state.registers.get(Register::TargetDirection).unwrap();
+        assert_eq!(distance, 0.0);
+        assert_eq!(angle, 0.0);
     }
 
     #[test]
     fn test_scan_by_id() {
-        use crate::vm::executor::combat_ops::process_by_id;
-
         let mut robot = create_test_robot();
-        let robot_ids = vec![1, 2];
-
-        let mut command_queue = VecDeque::new();
         let arena = Arena::new();
 
-        // Mock robot info provider
-        let mut get_robot_info = |id: u32| -> Option<(Point, RobotStatus)> {
-            if id == 2 {
-                Some((Point { x: 0.7, y: 0.5 }, RobotStatus::Active))
-            } else {
-                None
-            }
-        };
+        // Create other robots for scanning
+        let other_robot_pos = Point { x: 0.7, y: 0.5 };
+        let mut other_robot = create_test_robot_at(other_robot_pos, 2);
+        other_robot.status = RobotStatus::Active;
+        let robots = vec![robot.clone(), other_robot];
+
+        let mut command_queue = VecDeque::new();
+        let processor = CombatOperations::new();
 
         // Select turret component
         robot.vm_state.set_selected_component(2).unwrap();
@@ -334,8 +345,15 @@ mod tests {
         let scan = Instruction::Scan;
         let result = process_by_id(
             &mut robot,
-            &mut get_robot_info,
-            &robot_ids,
+            &mut |id| {
+                for r in &robots {
+                    if r.id == id {
+                        return Some((r.position, r.status));
+                    }
+                }
+                None
+            },
+            &robots.iter().map(|r| r.id).collect::<Vec<_>>(),
             &arena,
             &scan,
             &mut command_queue,

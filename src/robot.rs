@@ -80,9 +80,13 @@ pub struct Robot {
 
 impl Robot {
     // Creates a new robot with default values at a given position
-    pub fn new(id: u32, name: String, position: Point) -> Self {
-        let initial_drive_dir = 0.0;
-        let initial_turret_dir = 0.0;
+    pub fn new(id: u32, name: String, position: Point, center: Point) -> Self {
+        // Calculate angle towards the center
+        let dx = center.x - position.x;
+        let dy = center.y - position.y;
+        let angle_rad = dy.atan2(dx);
+        let initial_direction_deg = angle_rad.to_degrees().rem_euclid(360.0);
+
         Robot {
             id,
             name, // Store the provided name
@@ -92,18 +96,18 @@ impl Robot {
             power: config::DEFAULT_INITIAL_POWER,
             status: RobotStatus::Idle,
             drive: DriveComponent {
-                direction: initial_drive_dir,
+                direction: initial_direction_deg, // Set initial direction
                 velocity: 0.0,
                 pending_rotation: 0.0,
             },
-            prev_drive_direction: initial_drive_dir, // Initialize prev state
+            prev_drive_direction: initial_direction_deg, // Initialize prev state
             turret: TurretComponent {
-                direction: initial_turret_dir,
+                direction: initial_direction_deg, // Set initial direction
                 pending_rotation: 0.0,
                 scanner: Scanner::default(),
                 ranged: RangedWeapon::default(),
             },
-            prev_turret_direction: initial_turret_dir, // Initialize prev state
+            prev_turret_direction: initial_direction_deg, // Initialize prev state
             vm_state: VMState::new(),
             program: Vec::new(), // Initialize empty program
             rng: thread_rng(),
@@ -936,6 +940,20 @@ mod tests {
             .unwrap();
     }
 
+    // Helper to create a test robot with a specific position
+    fn create_test_robot_at(pos: Point) -> Robot {
+        // Use a default center for test robots
+        let center = Point { x: 0.5, y: 0.5 };
+        Robot::new(0, "TestRobot".to_string(), pos, center)
+    }
+
+    // Helper to create a test robot at default position
+    fn create_test_robot() -> Robot {
+        // Use a default center for test robots
+        let center = Point { x: 0.5, y: 0.5 };
+        create_test_robot_at(Point { x: 0.5, y: 0.5 })
+    }
+
     #[test]
     fn test_basic_movement() {
         // Create a larger arena with no obstacles for testing
@@ -949,7 +967,8 @@ mod tests {
         arena.obstacles.clear(); // Make sure there are no obstacles
         
         // Position the robot farther from the edge at (1.0, 1.0) to ensure it can move a full unit
-        let mut robot = Robot::new(0, String::new(), Point { x: 1.0, y: 1.0 });
+        let center = Point { x: arena.width / 2.0, y: arena.height / 2.0 };
+        let mut robot = Robot::new(0, String::new(), Point { x: 1.0, y: 1.0 }, center);
         let mut command_queue = VecDeque::new();
 
         // Print arena size
@@ -975,6 +994,9 @@ mod tests {
 
         // Execute the rotate instruction 
         simulate_cycle(&mut robot, &[], &arena, &mut command_queue);
+
+        // Explicitly set direction to 0 for this test, overriding center-facing default
+        robot.drive.direction = 0.0;
 
         // Expected velocity is 1.0 * UNIT_SIZE / CYCLES_PER_TURN coordinate units per cycle
         let expected_velocity = config::UNIT_SIZE / config::CYCLES_PER_TURN as f64;
@@ -1070,7 +1092,8 @@ mod tests {
         arena.obstacles.clear(); // Make sure there are no obstacles
         
         // Position the robot away from the edges
-        let mut robot = Robot::new(0, String::new(), Point { x: 1.0, y: 1.0 });
+        let center = Point { x: arena.width / 2.0, y: arena.height / 2.0 };
+        let mut robot = Robot::new(0, String::new(), Point { x: 1.0, y: 1.0 }, center);
         let mut command_queue = VecDeque::new();
 
         // First select drive component
@@ -1118,7 +1141,7 @@ mod tests {
 
     #[test]
     fn test_component_switching() {
-        let mut robot = Robot::new(0, String::new(), Point { x: 0.5, y: 0.5 });
+        let mut robot = Robot::new(0, String::new(), Point { x: 0.5, y: 0.5 }, Point { x: 0.5, y: 0.5 });
         let arena = Arena::default();
         let mut command_queue = VecDeque::new();
 
@@ -1169,7 +1192,7 @@ mod tests {
 
     #[test]
     fn test_program_errors() {
-        let mut robot = Robot::new(0, String::new(), Point { x: 0.5, y: 0.5 });
+        let mut robot = Robot::new(0, String::new(), Point { x: 0.5, y: 0.5 }, Point { x: 0.5, y: 0.5 });
         let arena = Arena::default();
         let mut command_queue = VecDeque::new();
 
@@ -1205,7 +1228,7 @@ mod tests {
 
     #[test]
     fn test_register_interaction() {
-        let mut robot = Robot::new(0, String::new(), Point { x: 0.5, y: 0.5 });
+        let mut robot = Robot::new(0, String::new(), Point { x: 0.5, y: 0.5 }, Point { x: 0.5, y: 0.5 });
         let arena = Arena::default();
 
         let program = parse_program(
@@ -1228,11 +1251,12 @@ mod tests {
 
     #[test]
     fn test_fire_weapon() {
-        let mut robot = Robot::new(0, String::new(), Point { x: 0.5, y: 0.5 });
-        let arena = Arena::default();
+        let mut arena = Arena::new();
+        let center = Point { x: arena.width / 2.0, y: arena.height / 2.0 };
+        let mut robot = Robot::new(0, "TestRobot".to_string(), Point { x: 0.5, y: 0.5 }, center);
         let mut command_queue = VecDeque::new();
 
-        // Set robot's power directly (instead of trying to modify @power register)
+        // Set up robot state
         robot.power = 0.5;
 
         let program = parse_program(

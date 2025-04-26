@@ -305,8 +305,9 @@ mod tests {
     }
 
     fn setup() -> (Robot, Arena, VecDeque<ArenaCommand>) {
-        let mut robot = Robot::new(0, "TestRobot".to_string(), Point { x: 0.5, y: 0.5 });
         let arena = Arena::new();
+        let center = Point { x: arena.width / 2.0, y: arena.height / 2.0 };
+        let mut robot = Robot::new(0, "TestRobot".to_string(), Point { x: 0.5, y: 0.5 }, center);
         let command_queue = VecDeque::new();
 
         // Initialize the result register for conditional jumps
@@ -319,17 +320,19 @@ mod tests {
 
     fn setup_vm() -> (Robot, Arena, VecDeque<ArenaCommand>) {
         // Initialize with default state
-        let robot = Robot::new(0, "TestRobot".to_string(), Point { x: 0.5, y: 0.5 });
         let arena = Arena::new();
+        let center = Point { x: arena.width / 2.0, y: arena.height / 2.0 };
+        let robot = Robot::new(0, "TestRobot".to_string(), Point { x: 0.5, y: 0.5 }, center);
         let command_queue = VecDeque::new();
         (robot, arena, command_queue)
     }
 
     fn setup_call_ret_vm() -> (Robot, Arena, VecDeque<ArenaCommand>) {
         // Initialize with default state
-        let robot = Robot::new(0, "TestRobot".to_string(), Point { x: 0.0, y: 0.0 });
-        // robot.vm_state.sp = 1024; // TODO: SP access needs update if required
         let arena = Arena::new();
+        let center = Point { x: arena.width / 2.0, y: arena.height / 2.0 };
+        let robot = Robot::new(0, "TestRobot".to_string(), Point { x: 0.0, y: 0.0 }, center);
+        // robot.vm_state.sp = 1024; // TODO: SP access needs update if required
         let command_queue = VecDeque::new();
         (robot, arena, command_queue)
     }

@@ -14,7 +14,6 @@ pub const WINDOW_HEIGHT: i32 = 800;
 pub const UI_PANEL_WIDTH: i32 = 200; // Width of the side panel
 pub const ARENA_WIDTH: i32 = WINDOW_WIDTH - UI_PANEL_WIDTH; // Width for the arena rendering
 pub const ARENA_HEIGHT: i32 = WINDOW_HEIGHT; // Arena uses full height
-pub const FRAME_RATE: u32 = 60; // Target frame rate
 
 // Game rules
 pub const MAX_TURNS: u32 = 1000; // Maximum turns before draw

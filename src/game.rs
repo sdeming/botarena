@@ -57,22 +57,23 @@ impl Game {
             Point {
                 x: offset,
                 y: offset,
-            }, // Top-left
+            }, // Top-left  (Index 0)
+            Point {
+                x: 1.0 - offset,
+                y: 1.0 - offset,
+            }, // Bottom-right (Index 1 - was 2)
             Point {
                 x: 1.0 - offset,
                 y: offset,
-            }, // Top-right
-            Point {
-                x: 1.0 - offset,
-                y: 1.0 - offset,
-            }, // Bottom-right
+            }, // Top-right (Index 2 - was 1)
             Point {
                 x: offset,
                 y: 1.0 - offset,
-            }, // Bottom-left
+            }, // Bottom-left (Index 3)
         ];
 
         // Load robot programs
+        let center = Point { x: arena.width / 2.0, y: arena.height / 2.0 }; // Calculate center
         for (i, filename) in robot_files.iter().enumerate() {
             let robot_id = (i + 1) as u32;
             let position = positions[i];
@@ -99,7 +100,7 @@ impl Game {
             // Parse the program using the predefined constants
             match crate::vm::parser::parse_assembly(&program_content, Some(&predefined_constants)) {
                 Ok(parsed_program) => {
-                    let mut robot = Robot::new(robot_id, robot_name, position);
+                    let mut robot = Robot::new(robot_id, robot_name, position, center);
                     robot.load_program(parsed_program);
                     robots.push(robot);
                 }
@@ -363,7 +364,9 @@ mod tests {
 
     // Helper to create a dummy robot with a given id, position, and status
     fn dummy_robot(id: u32, pos: Point, status: RobotStatus) -> Robot {
-        let mut robot = Robot::new(id, pos);
+        // Use a default center for dummy robots in tests
+        let center = Point { x: 0.5, y: 0.5 };
+        let mut robot = Robot::new(id, format!("TestRobot_{}", id).to_string(), pos, center);
         robot.status = status;
         robot
     }

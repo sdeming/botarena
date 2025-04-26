@@ -8,6 +8,7 @@ use std::collections::VecDeque;
 
 use super::processor::InstructionProcessor;
 use crate::vm::instruction::Instruction;
+use crate::vm::operand::Operand;
 
 /// Processor for robot component operations
 pub struct ComponentOperations;
@@ -114,6 +115,7 @@ impl InstructionProcessor for ComponentOperations {
                             robot.drive.direction
                         );
                         robot.request_drive_rotation(angle);
+                        Ok(())
                     }
                     2 => {
                         // Turret
@@ -126,11 +128,11 @@ impl InstructionProcessor for ComponentOperations {
                             robot.turret.direction
                         );
                         robot.request_turret_rotation(angle);
+                        Ok(())
                     }
-                    _ => return Err(VMFault::NoComponentSelected),
+                    0 => Err(VMFault::NoComponentSelected),
+                    _ => Err(VMFault::InvalidComponentForOp),
                 }
-
-                Ok(())
             }
             Instruction::Drive(op) => {
                 let val = op.get_value(&robot.vm_state)?;
@@ -207,143 +209,100 @@ impl InstructionProcessor for ComponentOperations {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::robot::{Robot, RobotStatus};
-    use crate::types::{Point, ArenaCommand};
     use crate::arena::Arena;
+    use crate::robot::Robot;
+    use crate::types::{ArenaCommand, Point};
     use crate::vm::error::VMFault;
-    use crate::vm::operand::Operand;
     use crate::vm::instruction::Instruction;
+    use crate::vm::operand::Operand;
+    use crate::vm::registers::Register;
     use std::collections::VecDeque;
+    use crate::config;
 
     fn create_test_robot() -> Robot {
-        let mut robot = Robot::new(1, "TestRobot".to_string(), Point { x: 0.5, y: 0.5 });
-        robot.status = RobotStatus::Active;
-        robot
+        let arena = Arena::new();
+        let center = Point { x: arena.width / 2.0, y: arena.height / 2.0 };
+        Robot::new(1, "TestRobot".to_string(), Point { x: 0.5, y: 0.5 }, center)
+    }
+
+    fn setup() -> (Robot, Arena, VecDeque<ArenaCommand>) {
+        let mut robot = create_test_robot();
+        let arena = Arena::new();
+        let command_queue = VecDeque::new();
+        // Initialize registers for testing
+        robot.vm_state.registers.set(Register::D0, 5.0).unwrap();
+        robot.vm_state.registers.set(Register::D1, 10.0).unwrap();
+        (robot, arena, command_queue)
+    }
+
+    #[test]
+    fn test_can_process() {
+        let processor = ComponentOperations::new();
+        assert!(processor.can_process(&Instruction::Select(Operand::Value(1.0))));
+        assert!(processor.can_process(&Instruction::Deselect));
+        assert!(processor.can_process(&Instruction::Rotate(Operand::Value(90.0))));
+        assert!(processor.can_process(&Instruction::Drive(Operand::Value(1.0))));
+
+        // Should not process other instructions
+        assert!(!processor.can_process(&Instruction::Add));
     }
 
     #[test]
     fn test_select_component() {
-        let mut robot = create_test_robot();
-        let mut command_queue = VecDeque::new();
-        let arena = Arena::new();
+        let (mut robot, arena, mut command_queue) = setup();
         let processor = ComponentOperations::new();
-
-        // Test selecting drive component (1)
-        let select_drive = Instruction::Select(Operand::Value(1.0));
-        let result = processor.process(&mut robot, &[], &arena, &select_drive, &mut command_queue);
+        let result = processor.process(&mut robot, &[], &arena, &Instruction::Select(Operand::Value(1.0)), &mut command_queue);
         assert!(result.is_ok());
-        assert_eq!(
-            robot.vm_state.registers.get(Register::Component).unwrap(),
-            1.0
-        );
+        assert_eq!(robot.vm_state.registers.get(Register::Component).unwrap(), 1.0);
 
-        // Test selecting turret component (2)
-        let select_turret = Instruction::Select(Operand::Value(2.0));
-        let result = processor.process(&mut robot, &[], &arena, &select_turret, &mut command_queue);
-        assert!(result.is_ok());
-        assert_eq!(
-            robot.vm_state.registers.get(Register::Component).unwrap(),
-            2.0
-        );
+        let result_deselect = processor.process(&mut robot, &[], &arena, &Instruction::Deselect, &mut command_queue);
+        assert!(result_deselect.is_ok());
+        assert_eq!(robot.vm_state.registers.get(Register::Component).unwrap(), 0.0);
+    }
 
-        // Test selecting invalid component (3)
-        let select_invalid = Instruction::Select(Operand::Value(3.0));
-        let result =
-            processor.process(&mut robot, &[], &arena, &select_invalid, &mut command_queue);
+    #[test]
+    fn test_select_invalid_component() {
+        let (mut robot, arena, mut command_queue) = setup();
+        let processor = ComponentOperations::new();
+        let result = processor.process(&mut robot, &[], &arena, &Instruction::Select(Operand::Value(99.0)), &mut command_queue);
         assert!(result.is_err());
         assert_eq!(result.unwrap_err(), VMFault::InvalidComponentForOp);
     }
 
     #[test]
-    fn test_deselect_component() {
-        let mut robot = create_test_robot();
-        let mut command_queue = VecDeque::new();
-        let arena = Arena::new();
+    fn test_drive_requires_drive_component() {
+        let (mut robot, arena, mut command_queue) = setup();
         let processor = ComponentOperations::new();
 
-        // First select a component
-        robot.vm_state.set_selected_component(1).unwrap();
-        assert_eq!(
-            robot.vm_state.registers.get(Register::Component).unwrap(),
-            1.0
-        );
-
-        // Test deselect
-        let deselect = Instruction::Deselect;
-        let result = processor.process(&mut robot, &[], &arena, &deselect, &mut command_queue);
-        assert!(result.is_ok());
-        assert_eq!(
-            robot.vm_state.registers.get(Register::Component).unwrap(),
-            0.0
-        );
-    }
-
-    #[test]
-    fn test_rotate_drive() {
-        let mut robot = create_test_robot();
-        let mut command_queue = VecDeque::new();
-        let arena = Arena::new();
-        let processor = ComponentOperations::new();
-
-        // Select drive component
-        robot.vm_state.set_selected_component(1).unwrap();
-
-        // Initial direction
-        let initial_direction = 0.0;
-        robot.drive.direction = initial_direction;
-
-        // Test rotating drive by 45 degrees
-        let rotate_angle = 45.0;
-        let rotate = Instruction::Rotate(Operand::Value(rotate_angle));
-        let result = processor.process(&mut robot, &[], &arena, &rotate, &mut command_queue);
-
-        assert!(result.is_ok());
-        assert_eq!(robot.drive.pending_rotation, rotate_angle);
-    }
-
-    #[test]
-    fn test_rotate_turret() {
-        let mut robot = create_test_robot();
-        let mut command_queue = VecDeque::new();
-        let arena = Arena::new();
-        let processor = ComponentOperations::new();
-
-        // Select turret component
+        // Select turret component (not drive)
         robot.vm_state.set_selected_component(2).unwrap();
 
-        // Initial direction
-        let initial_direction = 0.0;
-        robot.turret.direction = initial_direction;
-
-        // Test rotating turret by 90 degrees
-        let rotate_angle = 90.0;
-        let rotate = Instruction::Rotate(Operand::Value(rotate_angle));
-        let result = processor.process(&mut robot, &[], &arena, &rotate, &mut command_queue);
-
-        assert!(result.is_ok());
-        assert_eq!(robot.turret.pending_rotation, rotate_angle);
+        let drive = Instruction::Drive(Operand::Value(1.0));
+        let result = processor.process(&mut robot, &[], &arena, &drive, &mut command_queue);
+        assert!(result.is_err());
+        assert_eq!(result.unwrap_err(), VMFault::InvalidComponentForOp);
     }
 
     #[test]
-    fn test_rotate_no_component() {
-        let mut robot = create_test_robot();
-        let mut command_queue = VecDeque::new();
-        let arena = Arena::new();
+    fn test_rotate_requires_drive_or_turret() {
+        let (mut robot, arena, mut command_queue) = setup();
         let processor = ComponentOperations::new();
 
-        // No component selected
+        // Case 1: No component selected initially (ID 0)
         robot.vm_state.set_selected_component(0).unwrap();
-
-        // Try to rotate
         let rotate = Instruction::Rotate(Operand::Value(45.0));
-        let result = processor.process(&mut robot, &[], &arena, &rotate, &mut command_queue);
+        let result_none = processor.process(&mut robot, &[], &arena, &rotate, &mut command_queue);
+        assert!(result_none.is_err());
+        assert_eq!(result_none.unwrap_err(), VMFault::NoComponentSelected, "Rotate with component 0 selected should yield NoComponentSelected.");
 
-        assert!(result.is_err());
-        assert_eq!(result.unwrap_err(), VMFault::NoComponentSelected);
+        // Case 2: Select an invalid component ID (e.g., 99)
+        robot.vm_state.set_selected_component(99).unwrap();
+        let result_invalid = processor.process(&mut robot, &[], &arena, &rotate, &mut command_queue);
+        assert!(result_invalid.is_err());
+        assert_eq!(result_invalid.unwrap_err(), VMFault::InvalidComponentForOp, "Rotate with invalid component ID 99 should yield InvalidComponentForOp.");
     }
 
-    #[test]
-    fn test_drive_instruction() {
+    fn test_drive_sets_velocity() {
         let mut robot = create_test_robot();
         let mut command_queue = VecDeque::new();
         let arena = Arena::new();
@@ -382,8 +341,29 @@ mod tests {
         assert_eq!(robot.drive.velocity, expected_min);
     }
 
-    #[test]
-    fn test_drive_wrong_component() {
+    fn test_rotate_drive() {
+        let mut robot = create_test_robot();
+        let mut command_queue = VecDeque::new();
+        let arena = Arena::new();
+        let processor = ComponentOperations::new();
+
+        // Select drive component
+        robot.vm_state.set_selected_component(1).unwrap();
+
+        // Initial direction
+        let initial_direction = 0.0;
+        robot.drive.direction = initial_direction;
+
+        // Test rotating drive by 45 degrees
+        let rotate_angle = 45.0;
+        let rotate = Instruction::Rotate(Operand::Value(rotate_angle));
+        let result = processor.process(&mut robot, &[], &arena, &rotate, &mut command_queue);
+
+        assert!(result.is_ok());
+        assert_eq!(robot.drive.pending_rotation, rotate_angle);
+    }
+
+    fn test_rotate_turret() {
         let mut robot = create_test_robot();
         let mut command_queue = VecDeque::new();
         let arena = Arena::new();
@@ -392,19 +372,73 @@ mod tests {
         // Select turret component
         robot.vm_state.set_selected_component(2).unwrap();
 
-        // Try to drive with turret selected
-        let drive = Instruction::Drive(Operand::Value(0.5));
-        let result = processor.process(&mut robot, &[], &arena, &drive, &mut command_queue);
+        // Initial direction
+        let initial_direction = 0.0;
+        robot.turret.direction = initial_direction;
 
-        assert!(result.is_err());
-        assert_eq!(result.unwrap_err(), VMFault::InvalidComponentForOp);
+        // Test rotating turret by 90 degrees
+        let rotate_angle = 90.0;
+        let rotate = Instruction::Rotate(Operand::Value(rotate_angle));
+        let result = processor.process(&mut robot, &[], &arena, &rotate, &mut command_queue);
+
+        assert!(result.is_ok());
+        assert_eq!(robot.turret.pending_rotation, rotate_angle);
     }
 
-    fn setup() -> (Robot, Arena, VecDeque<ArenaCommand>) {
-        // Robot with default components
-        let robot = Robot::new(1, "TestRobot".to_string(), Point { x: 0.5, y: 0.5 });
+    fn test_rotate_no_component() {
+        let mut robot = create_test_robot();
+        let mut command_queue = VecDeque::new();
         let arena = Arena::new();
-        let command_queue = VecDeque::new();
-        (robot, arena, command_queue)
+        let processor = ComponentOperations::new();
+
+        // No component selected
+        robot.vm_state.set_selected_component(0).unwrap();
+
+        // Try to rotate
+        let rotate = Instruction::Rotate(Operand::Value(45.0));
+        let result = processor.process(&mut robot, &[], &arena, &rotate, &mut command_queue);
+
+        assert!(result.is_err());
+        assert_eq!(result.unwrap_err(), VMFault::NoComponentSelected);
+    }
+
+    #[test] // Make this a test function
+    fn test_drive_velocity_conversion() {
+        let mut robot = create_test_robot(); // Helper now creates robot, needs mut
+        let mut command_queue = VecDeque::new();
+        let arena = Arena::new();
+        let processor = ComponentOperations::new();
+
+        // Select drive component first
+        robot.vm_state.set_selected_component(1).unwrap();
+
+        // Test with a value within the allowed range
+        let drive_velocity = 0.5;
+        let expected_scaled_velocity = drive_velocity * config::DRIVE_VELOCITY_FACTOR;
+        let drive = Instruction::Drive(Operand::Value(drive_velocity));
+        let result = processor.process(&mut robot, &[], &arena, &drive, &mut command_queue);
+
+        assert!(result.is_ok());
+        assert_eq!(robot.drive.velocity, expected_scaled_velocity);
+
+        // Test with a value exceeding the maximum
+        let excessive_velocity = config::MAX_DRIVE_UNITS_PER_TURN + 1.0;
+        let expected_max = config::MAX_DRIVE_UNITS_PER_TURN * config::DRIVE_VELOCITY_FACTOR; // This is now 5 * UNIT_SIZE / CYCLES_PER_TURN
+        let drive_excessive = Instruction::Drive(Operand::Value(excessive_velocity));
+        let result = processor.process(&mut robot, &[], &arena, &drive_excessive, &mut command_queue);
+
+        assert!(result.is_ok());
+        // Verify that the value was clamped to max
+        assert_eq!(robot.drive.velocity, expected_max);
+
+        // Test with a value lower than the minimum
+        let excessive_reverse_velocity = -1.0 * (config::MAX_DRIVE_UNITS_PER_TURN + 1.0);
+        let expected_min = -1.0 * (config::MAX_DRIVE_UNITS_PER_TURN * config::DRIVE_VELOCITY_FACTOR);
+        let reverse_drive_excessive = Instruction::Drive(Operand::Value(excessive_reverse_velocity));
+        let result = processor.process(&mut robot, &[], &arena, &reverse_drive_excessive, &mut command_queue);
+
+        assert!(result.is_ok());
+        // Verify that the value was clamped to max
+        assert_eq!(robot.drive.velocity, expected_min);
     }
 }
