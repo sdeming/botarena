@@ -77,6 +77,7 @@ async fn main() {
     let mut renderer = render::Renderer::new();
     renderer.init_material();
     renderer.init_glow_resources();
+    renderer.init_scanner_material();
     info!("Renderer initialized.");
 
     // Run the game loop

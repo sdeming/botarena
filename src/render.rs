@@ -1,12 +1,10 @@
 use crate::arena::*;
-use crate::config::*;
+use crate::config::{ARENA_WIDTH, ARENA_HEIGHT, UNIT_SIZE, UI_PANEL_WIDTH, WINDOW_WIDTH, WINDOW_HEIGHT};
 use crate::particles::ParticleSystem;
 use crate::robot::Robot;
-use crate::robot::RobotStatus;
 use crate::types::*;
 use crate::utils;
-use log::info;
-use macroquad::miniquad::{self, BlendFactor, BlendState, BlendValue, Equation, PipelineParams, TextureFormat, TextureParams, FilterMode};
+use macroquad::miniquad::{BlendFactor, BlendState, BlendValue, Equation, PipelineParams, TextureFormat, TextureParams, FilterMode};
 use macroquad::prelude::*;
 
 const BRIGHTNESS_THRESHOLD: f32 = 0.05;
@@ -52,6 +50,7 @@ pub struct Renderer {
     h_blur_material: Option<Material>,
     v_blur_material: Option<Material>,
     additive_material: Option<Material>, // Material for final additive blend
+    scanner_material: Option<Material>, // Material for scanner visualization
 }
 
 impl Renderer {
@@ -65,7 +64,8 @@ impl Renderer {
             brightness_material: None,
             h_blur_material: None,
             v_blur_material: None,
-            additive_material: None, // Initialize
+            additive_material: None,
+            scanner_material: None, // Initialize
         }
     }
 
@@ -100,6 +100,49 @@ void main() {
         self.material = Some(material);
     }
 
+    pub fn init_scanner_material(&mut self) {
+        let vertex_shader = "#version 100
+            attribute vec3 position;
+            attribute vec4 color0;
+            varying lowp vec4 frag_color;
+            uniform mat4 Model;
+            uniform mat4 Projection;
+            void main() {
+                gl_Position = Projection * Model * vec4(position, 1.0);
+                frag_color = color0 / 255.0;
+            }";
+
+        let fragment_shader = "#version 100
+            precision lowp float;
+            varying lowp vec4 frag_color;
+            void main() {
+                gl_FragColor = frag_color;
+            }";
+
+        let pipeline_params = PipelineParams {
+            color_blend: Some(BlendState::new(
+                Equation::Add,
+                BlendFactor::One, // Use premultiplied alpha source factor
+                BlendFactor::OneMinusValue(BlendValue::SourceAlpha), // Correct standard alpha destination factor
+            )),
+            ..Default::default()
+        };
+
+        self.scanner_material = Some(
+            load_material(
+                ShaderSource::Glsl {
+                    vertex: vertex_shader,
+                    fragment: fragment_shader,
+                },
+                MaterialParams {
+                    pipeline_params,
+                    ..Default::default()
+                },
+            )
+            .expect("Failed to load scanner material"),
+        );
+    }
+
     // Initialize materials and render targets for the glow effect
     pub fn init_glow_resources(&mut self) {
         // Use miniquad::render_target to create RenderTargets
@@ -109,7 +152,7 @@ void main() {
         self.blur_rt2 = Some(render_target(ARENA_WIDTH as u32, ARENA_HEIGHT as u32));
 
         // Use imported miniquad types
-        let texture_params = TextureParams {
+        let _texture_params = TextureParams {
             format: TextureFormat::RGBA8,
             min_filter: FilterMode::Linear,
             mag_filter: FilterMode::Linear,
@@ -265,12 +308,30 @@ void main() {
         cycle_duration: f32,
         announcement: Option<&str>,
     ) {
+        // --- Bypass Glow Effect - Draw directly to screen --- 
+        set_default_camera(); // Ensure we are drawing to the screen
+        clear_background(BLACK); // Clear the main screen
+
+        let alpha = (time_accumulator / cycle_duration).clamp(0.0, 1.0);
+        // Draw arena elements directly
+        Self::draw_arena_boundaries(arena, ARENA_WIDTH, ARENA_HEIGHT);
+        Self::draw_obstacles(arena, ARENA_WIDTH, ARENA_HEIGHT);
+        for robot in robots {
+            // Note: draw_robot now needs &mut self if we were to use materials internally
+            // Since we are calling it on Self, we pass self implicitly.
+            // If draw_robot was not part of Renderer impl, we would need &mut renderer.
+            self.draw_robot(robot, ARENA_WIDTH, ARENA_HEIGHT, alpha as f64);
+        }
+        Self::draw_projectiles(arena, ARENA_WIDTH, ARENA_HEIGHT, alpha as f64);
+        Self::draw_particles(particle_system, ARENA_WIDTH, ARENA_HEIGHT, alpha);
+
+        /* --- Glow Effect Code - Temporarily Disabled --- 
         // Ensure all RTs and materials are initialized (should be done in main, but double-check)
         if self.scene_rt.is_none() {
              self.init_glow_resources();
         }
 
-        // --- Pass 1: Draw Scene to Render Target ---
+        // --- Pass 1: Draw Scene to Render Target --- 
         let scene_rt = self.scene_rt.as_ref().unwrap();
         set_camera(&Camera2D {
             render_target: Some(scene_rt.clone()),
@@ -285,14 +346,14 @@ void main() {
         Self::draw_arena_boundaries(arena, ARENA_WIDTH, ARENA_HEIGHT);
         Self::draw_obstacles(arena, ARENA_WIDTH, ARENA_HEIGHT);
         for robot in robots {
-            Self::draw_robot(robot, ARENA_WIDTH, ARENA_HEIGHT, alpha as f64);
+            self.draw_robot(robot, ARENA_WIDTH, ARENA_HEIGHT, alpha as f64); 
         }
         Self::draw_projectiles(arena, ARENA_WIDTH, ARENA_HEIGHT, alpha as f64);
         Self::draw_particles(particle_system, ARENA_WIDTH, ARENA_HEIGHT, alpha);
 
         set_default_camera(); // Reset camera after drawing to RT
 
-        // --- Pass 2: Extract Bright Pixels ---
+        // --- Pass 2: Extract Bright Pixels --- 
         let bright_rt = self.bright_rt.as_ref().unwrap();
         let scene_texture = &self.scene_rt.as_ref().unwrap().texture;
         let brightness_material = self.brightness_material.as_ref().unwrap();
@@ -311,7 +372,7 @@ void main() {
         gl_use_default_material();
         set_default_camera();
 
-        // --- Pass 3: Blur Bright Pixels (Ping-Pong) ---
+        // --- Pass 3: Blur Bright Pixels (Ping-Pong) --- 
         let h_blur_material = self.h_blur_material.as_ref().unwrap();
         let v_blur_material = self.v_blur_material.as_ref().unwrap();
         let blur_rt1 = self.blur_rt1.as_ref().unwrap();
@@ -324,7 +385,7 @@ void main() {
         let mut current_target_rt = blur_rt1;
         let mut next_target_rt = blur_rt2;
 
-        for i in 0..BLUR_PASSES {
+        for _i in 0..BLUR_PASSES {
             // --- Horizontal Blur --- 
             let source_texture_h = &current_source_rt.texture;
             set_camera(&Camera2D { 
@@ -366,7 +427,7 @@ void main() {
         // After the loop, current_source_rt holds the final blurred texture
         let final_glow_rt = current_source_rt;
 
-        // --- Final Composite: Draw Scene + Additive Glow to Screen ---
+        // --- Final Composite: Draw Scene + Additive Glow to Screen --- 
         clear_background(BLACK); // Clear the main screen
 
         // 1. Draw the original scene - NO flip needed now
@@ -381,8 +442,9 @@ void main() {
         // Draw rectangle, the material's passthrough shader will sample the glow texture
         draw_rectangle(0.0, 0.0, ARENA_WIDTH as f32, ARENA_HEIGHT as f32, WHITE);
         gl_use_default_material(); // Reset to default material/pipeline
+        */
 
-        // --- Draw UI (unaffected by glow) ---
+        // --- Draw UI (unaffected by glow) --- 
         Self::draw_ui_panel(
             robots,
             current_turn,
@@ -396,7 +458,7 @@ void main() {
         }
     }
 
-    fn draw_arena_boundaries(arena: &Arena, arena_screen_width: i32, arena_screen_height: i32) {
+    fn draw_arena_boundaries(_arena: &Arena, arena_screen_width: i32, arena_screen_height: i32) {
         draw_rectangle_lines(
             1.0,
             1.0,
@@ -422,7 +484,7 @@ void main() {
         }
     }
 
-    fn draw_robot(robot: &Robot, arena_screen_width: i32, arena_screen_height: i32, alpha: f64) {
+    fn draw_robot(&self, robot: &Robot, arena_screen_width: i32, arena_screen_height: i32, alpha: f64) {
         let robot_screen_size = (UNIT_SIZE * arena_screen_width.min(arena_screen_height) as f64) as f32;
         let radius = robot_screen_size / 2.0;
         // Interpolate state
@@ -458,6 +520,55 @@ void main() {
         let turret_rad = interp_turret_deg.to_radians() as f32;
         let turret_end = center_pos + Vec2::new(turret_rad.cos(), turret_rad.sin()) * radius * 0.8;
         draw_line(center_pos.x, center_pos.y, turret_end.x, turret_end.y, 2.0, faded_color(LIGHTGRAY, 1.0));
+
+        // Draw scanner area using a custom mesh and material
+        if let Some(scanner_material) = &self.scanner_material {
+            let scanner_range = (robot.turret.scanner.range * arena_screen_width.min(arena_screen_height) as f64) as f32;
+            let scanner_fov_deg = robot.turret.scanner.fov as f32;
+            let start_angle_deg = interp_turret_deg as f32 - scanner_fov_deg / 2.0;
+            let base_scanner_color = faded_color(body_color, 0.15); // Set alpha to 0.15
+
+            // Premultiply color for the chosen blend mode
+            let scanner_color = Color::new(
+                base_scanner_color.r * base_scanner_color.a,
+                base_scanner_color.g * base_scanner_color.a,
+                base_scanner_color.b * base_scanner_color.a,
+                base_scanner_color.a,
+            );
+
+            let num_segments = 20; // Number of segments for the arc
+            let mut vertices: Vec<Vertex> = Vec::with_capacity(num_segments + 2);
+            let mut indices: Vec<u16> = Vec::with_capacity(num_segments * 3);
+
+            // Center vertex
+            vertices.push(Vertex::new(center_pos.x, center_pos.y, 0.0, 0.0, 0.0, scanner_color));
+
+            // Arc vertices
+            for i in 0..=num_segments {
+                let t = i as f32 / num_segments as f32;
+                let angle_deg = start_angle_deg + t * scanner_fov_deg;
+                let angle_rad = angle_deg.to_radians();
+                let point_on_arc = center_pos + Vec2::new(angle_rad.cos(), angle_rad.sin()) * scanner_range;
+                vertices.push(Vertex::new(point_on_arc.x, point_on_arc.y, 0.0, 0.0, 0.0, scanner_color));
+            }
+
+            // Triangle fan indices (0, 1, 2), (0, 2, 3), ...
+            for i in 1..=num_segments {
+                indices.push(0); // Center vertex
+                indices.push(i as u16);
+                indices.push(i as u16 + 1);
+            }
+
+            let mesh = Mesh {
+                vertices,
+                indices,
+                texture: None, // No texture needed
+            };
+
+            gl_use_material(scanner_material); // Use custom blend mode material
+            draw_mesh(&mesh); // Draw the custom mesh (Correct function name)
+            gl_use_default_material(); // Switch back to default material/blend state
+        }
     }
 
     fn draw_triangle_at_angle(

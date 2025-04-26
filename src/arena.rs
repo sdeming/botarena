@@ -3,7 +3,7 @@ use crate::config::*;
 use crate::particles::ParticleSystem;
 use crate::robot::{Robot, RobotStatus};
 use crate::types::*;
-use macroquad::prelude::{Vec2, Color, SKYBLUE, YELLOW, ORANGE};
+use macroquad::prelude::{Vec2, SKYBLUE, YELLOW, ORANGE};
 use ::rand::prelude::*;
 use std::f64::INFINITY;
 use macroquad::prelude::*;

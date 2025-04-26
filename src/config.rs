@@ -20,7 +20,7 @@ pub const FRAME_RATE: u32 = 60; // Target frame rate
 pub const MAX_TURNS: u32 = 1000; // Maximum turns before draw
 
 // Scanner configuration
-pub const DEFAULT_SCANNER_FOV: f64 = 45.0; // +/- 22.5 degrees from center
+pub const DEFAULT_SCANNER_FOV: f64 = 22.5; // +/- 11.25 degrees from center
 pub const DEFAULT_SCANNER_RANGE: f64 = 1.414; // Maximum arena diagonal (1.0 width + 1.0 height)
 
 // Ranged weapon configuration
