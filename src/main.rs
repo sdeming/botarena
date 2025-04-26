@@ -78,6 +78,8 @@ async fn main() {
     renderer.init_material();
     renderer.init_glow_resources();
     renderer.init_scanner_material();
+    renderer.load_title_font().await;
+    renderer.load_ui_font().await;
     info!("Renderer initialized.");
 
     // Run the game loop

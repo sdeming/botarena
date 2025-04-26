@@ -51,6 +51,8 @@ pub struct Renderer {
     v_blur_material: Option<Material>,
     additive_material: Option<Material>, // Material for final additive blend
     scanner_material: Option<Material>, // Material for scanner visualization
+    title_font: Option<Font>, // Font for UI title
+    ui_font: Option<Font>, // Font for general UI elements
 }
 
 impl Renderer {
@@ -65,7 +67,9 @@ impl Renderer {
             h_blur_material: None,
             v_blur_material: None,
             additive_material: None,
-            scanner_material: None, // Initialize
+            scanner_material: None,
+            title_font: None, // Initialize title_font as None
+            ui_font: None, // Initialize ui_font as None
         }
     }
 
@@ -141,6 +145,22 @@ void main() {
             )
             .expect("Failed to load scanner material"),
         );
+    }
+
+    // Load the custom title font
+    pub async fn load_title_font(&mut self) {
+        match load_ttf_font("assets/title.ttf").await {
+            Ok(font) => self.title_font = Some(font),
+            Err(e) => log::error!("Failed to load font assets/title.ttf: {}", e),
+        }
+    }
+
+    // Load the custom UI font
+    pub async fn load_ui_font(&mut self) {
+        match load_ttf_font("assets/default.ttf").await {
+            Ok(font) => self.ui_font = Some(font),
+            Err(e) => log::error!("Failed to load UI font assets/default.ttf: {}", e),
+        }
     }
 
     // Initialize materials and render targets for the glow effect
@@ -445,16 +465,25 @@ void main() {
         */
 
         // --- Draw UI (unaffected by glow) --- 
-        Self::draw_ui_panel(
+        self.draw_ui_panel(
             robots,
             current_turn,
             max_turns,
             current_cycle,
             cycles_per_turn,
         );
-        draw_text(&format!("FPS: {}", get_fps()), 10.0, 10.0, 20.0, WHITE);
+        // Draw FPS counter using UI font
+        let fps_text = format!("FPS: {}", get_fps());
+        let fps_params = TextParams {
+            font: self.ui_font.as_ref(),
+            font_size: 18,
+            color: WHITE,
+            ..Default::default()
+        };
+        draw_text_ex(&fps_text, 10.0, 20.0, fps_params); // Adjusted Y position slightly for clarity
+        
         if let Some(msg) = announcement {
-            Self::draw_announcement(msg);
+            self.draw_announcement(msg);
         }
     }
 
@@ -636,44 +665,86 @@ void main() {
         }
     }
 
-    fn draw_ui_panel(robots: &[Robot], current_turn: u32, max_turns: u32, current_cycle: u32, cycles_per_turn: u32) {
+    fn draw_ui_panel(&self, robots: &[Robot], current_turn: u32, max_turns: u32, current_cycle: u32, cycles_per_turn: u32) {
         let panel_x = ARENA_WIDTH as f32;
         let panel_width = UI_PANEL_WIDTH as f32;
-        let padding = 16.0;
-        let font_size = 22.0;
-        let small_font = 16.0;
-        let mut y = padding;
+        let padding = 10.0; // General padding for horizontal spacing and between elements
+        let top_margin = 16.0; // Specific margin for the top
+        let font_size = 22.0; // Base size for title (unused directly here)
+        let small_font_size = 14.0; // Reduced size for UI elements
+        let mut y = top_margin;
+
+        // Keep default font for most things
+        let default_params = TextParams {
+            font_size: font_size as u16,
+            color: WHITE,
+            ..Default::default()
+        };
+        let small_params = TextParams {
+            font_size: small_font_size as u16,
+            font: self.ui_font.as_ref(), // Use UI font
+            ..default_params
+        };
+        let small_gray_params = TextParams {
+            font: self.ui_font.as_ref(), // Use UI font
+            color: LIGHTGRAY,
+            ..small_params
+        };
+        let small_white_params = TextParams {
+            font: self.ui_font.as_ref(), // Use UI font
+            color: WHITE,
+            ..small_params
+        };
+        let small_value_params = TextParams {
+            font_size: (small_font_size - 2.0) as u16,
+            font: self.ui_font.as_ref(), // Use UI font
+            color: WHITE,
+            ..small_params
+        };
+
         // Panel drop shadow
         draw_rectangle(panel_x + 6.0, 8.0, panel_width, WINDOW_HEIGHT as f32 - 16.0, Color::from_rgba(0, 0, 0, 60));
         // Panel background
         draw_rectangle(panel_x, 0.0, panel_width, WINDOW_HEIGHT as f32, faded_color(Color::from_rgba(32, 36, 48, 255), 1.0));
-        // Title
-        draw_text("BOT ARENA", panel_x + padding, y, font_size, GOLD);
+        
+        // Title - Use custom font here only
+        let title_params = TextParams {
+            font: self.title_font.as_ref(), // Use custom font
+            font_size: font_size as u16,
+            color: GOLD,
+            ..Default::default()
+        };
+        draw_text_ex("BOT ARENA", panel_x + padding, y + 12.0, title_params); // Use title_params + 5.0px offset
         y += font_size + padding * 0.5;
-        // Turn meter
+        
+        // Turn meter - Use default font params
         let bar_x = panel_x + padding;
         let bar_width = panel_width - 2.0 * padding;
         let bar_height = 12.0;
         let turn_ratio = current_turn as f32 / max_turns as f32;
-        draw_text("TURN", bar_x, y, small_font, WHITE);
+        draw_text_ex("TURN", bar_x, y, small_white_params.clone());
         let turn_label_y = y;
-        let turn_bar_y = turn_label_y + small_font - 14.0 + 1.0;
+        let turn_bar_y = turn_label_y + small_font_size - 14.0 + 1.0;
         draw_rectangle(bar_x, turn_bar_y, bar_width, bar_height, Color::from_rgba(44, 48, 60, 255));
         draw_rectangle(bar_x, turn_bar_y, bar_width * turn_ratio, bar_height, GREEN);
-        draw_text(&format!("{}/{}", current_turn, max_turns), bar_x + bar_width - 60.0, turn_bar_y + bar_height * 0.7 + 1.0, small_font - 2.0, WHITE);
+        let turn_text = format!("{}/{}", current_turn, max_turns);
+        let turn_text_dims = measure_text(&turn_text, self.ui_font.as_ref(), small_value_params.font_size, 1.0);
+        draw_text_ex(&turn_text, bar_x + bar_width - turn_text_dims.width - 2.0, turn_bar_y + bar_height * 0.7 + 1.0, small_value_params.clone());
         y = turn_bar_y + bar_height + 8.0;
-        // Cycle meter
+        // Cycle meter - Use default font params
         let cycle_ratio = current_cycle as f32 / cycles_per_turn as f32;
         let cycle_label_y = y + 4.0;
-        draw_text("CYCLE", bar_x, cycle_label_y, small_font, WHITE);
-        let cycle_bar_y = cycle_label_y + small_font - 14.0 + 2.0;
+        draw_text_ex("CYCLE", bar_x, cycle_label_y, small_white_params.clone());
+        let cycle_bar_y = cycle_label_y + small_font_size - 14.0 + 2.0;
         draw_rectangle(bar_x, cycle_bar_y, bar_width, bar_height, Color::from_rgba(44, 48, 60, 255));
         draw_rectangle(bar_x, cycle_bar_y, bar_width * cycle_ratio, bar_height, SKYBLUE);
-        draw_text(&format!("{}/{}", current_cycle, cycles_per_turn), bar_x + bar_width - 60.0, cycle_bar_y + bar_height * 0.7 + 1.0, small_font - 2.0, WHITE);
+        let cycle_text = format!("{}/{}", current_cycle, cycles_per_turn);
+        let cycle_text_dims = measure_text(&cycle_text, self.ui_font.as_ref(), small_value_params.font_size, 1.0);
+        draw_text_ex(&cycle_text, bar_x + bar_width - cycle_text_dims.width - 2.0, cycle_bar_y + bar_height * 0.7 + 1.0, small_value_params.clone());
         y = cycle_bar_y + bar_height + padding * 0.5;
-        // Robot cards
+        // Robot cards - Use default font params
         let card_height = 124.0;
-        let card_spacing = 16.0;
+        let card_spacing = padding; // Use general padding for card spacing
         for robot in robots {
             let card_y = y;
             let robot_color = match robot.id {
@@ -692,60 +763,104 @@ void main() {
             let header_height = 28.0;
             draw_rectangle(panel_x + padding, card_y, panel_width - 2.0 * padding, header_height, robot_color);
             // Vertically center robot ID and status in header
-            let header_center_y = card_y + header_height / 2.0 + small_font / 2.2 - 2.0;
+            let header_center_y = card_y + header_height / 2.0 + small_font_size / 2.2 - 2.0;
             let name_text = format!("ROBOT {}", robot.id);
-            draw_text(&name_text, panel_x + padding * 2.0, header_center_y, small_font, WHITE);
+            draw_text_ex(&name_text, panel_x + padding * 2.0, header_center_y, small_white_params.clone());
             let status_text = format!("{:?}", robot.status);
-            draw_text(&status_text, panel_x + panel_width - padding * 3.0 - measure_text(&status_text, None, small_font as u16, 1.0).width as f32, header_center_y, small_font, WHITE);
-            // Health bar
-            let health_label_y = card_y + header_height + 10.0;
-            draw_text("HEALTH", panel_x + padding * 2.0, health_label_y, small_font - 2.0, LIGHTGRAY);
-            let health_bar_y = health_label_y + small_font - 2.0 - 10.0;
+            let status_text_dims = measure_text(&status_text, self.ui_font.as_ref(), small_white_params.font_size, 1.0);
+            draw_text_ex(&status_text, panel_x + panel_width - padding * 2.0 - status_text_dims.width, header_center_y, small_white_params.clone());
+            
+            // Define layout constants
+            let card_inner_padding_x = padding * 2.0;
+            let card_bar_width = panel_width - 2.0 * card_inner_padding_x;
+            let bar_height = 12.0;
+            let label_to_bar_y_offset = 2.0; // How far below label start the bar starts
+            let bar_value_pad_x = 4.0; // Right padding for value in bar
+            let value_font_size = small_value_params.font_size as f32;
+            let value_in_bar_y_offset = bar_height * 0.85; // Offset for value text within bar height
+            let row_v_spacing = 15.0; // Added 2px more vertical space between rows
+            let label_to_instr_y_offset = small_font_size + 2.0; // Space between INSTR label and its value
+
+            // Start drawing below the header (uses row_v_spacing)
+            let mut current_y = card_y + header_height + row_v_spacing;
+
+            // --- Health --- 
+            let health_label_y = current_y;
+            draw_text_ex("HEALTH", panel_x + card_inner_padding_x, health_label_y, small_gray_params.clone());
+            
+            let health_bar_y = health_label_y + label_to_bar_y_offset;
             let health_ratio = (robot.health / 100.0).clamp(0.0, 1.0) as f32;
-            let card_bar_width = panel_width - 4.0 * padding;
-            draw_rectangle(panel_x + padding * 2.0, health_bar_y, card_bar_width, 12.0, Color::from_rgba(54, 58, 70, 255));
-            draw_rectangle(panel_x + padding * 2.0, health_bar_y, card_bar_width * health_ratio, 12.0, RED);
-            // Value inside health bar
+            draw_rectangle(panel_x + card_inner_padding_x, health_bar_y, card_bar_width, bar_height, Color::from_rgba(54, 58, 70, 255));
+            draw_rectangle(panel_x + card_inner_padding_x, health_bar_y, card_bar_width * health_ratio, bar_height, RED);
+            
             let health_val = format!("{:.1}", robot.health);
-            let health_val_dims = measure_text(&health_val, None, (small_font - 2.0) as u16, 1.0);
-            draw_text(&health_val, panel_x + padding * 2.0 + card_bar_width - health_val_dims.width - 8.0, health_bar_y + 8.0, small_font - 2.0, WHITE);
-            // Power bar
-            let power_label_y = health_bar_y + 12.0 + 10.0;
-            draw_text("POWER", panel_x + padding * 2.0, power_label_y, small_font - 2.0, LIGHTGRAY);
-            let power_bar_y = power_label_y + small_font - 2.0 - 10.0;
+            let health_val_dims = measure_text(&health_val, self.ui_font.as_ref(), value_font_size as u16, 1.0);
+            draw_text_ex(&health_val, panel_x + card_inner_padding_x + card_bar_width - health_val_dims.width - bar_value_pad_x, health_bar_y + value_in_bar_y_offset, small_value_params.clone());
+            
+            // Update current_y to below the health bar + spacing
+            current_y = health_bar_y + bar_height + row_v_spacing;
+
+            // --- Power --- 
+            let power_label_y = current_y;
+            draw_text_ex("POWER", panel_x + card_inner_padding_x, power_label_y, small_gray_params.clone());
+            
+            let power_bar_y = power_label_y + label_to_bar_y_offset;
             let power_ratio = (robot.power / 1.0).clamp(0.0, 1.0) as f32;
-            draw_rectangle(panel_x + padding * 2.0, power_bar_y, card_bar_width, 12.0, Color::from_rgba(54, 58, 70, 255));
-            draw_rectangle(panel_x + padding * 2.0, power_bar_y, card_bar_width * power_ratio, 12.0, Color::from_rgba(40, 80, 180, 255));
-            // Value inside power bar
+            draw_rectangle(panel_x + card_inner_padding_x, power_bar_y, card_bar_width, bar_height, Color::from_rgba(54, 58, 70, 255));
+            draw_rectangle(panel_x + card_inner_padding_x, power_bar_y, card_bar_width * power_ratio, 12.0, Color::from_rgba(40, 80, 180, 255));
+            
             let power_val = format!("{:.2}", robot.power);
-            let power_val_dims = measure_text(&power_val, None, (small_font - 2.0) as u16, 1.0);
-            draw_text(&power_val, panel_x + padding * 2.0 + card_bar_width - power_val_dims.width - 8.0, power_bar_y + 8.0, small_font - 2.0, WHITE);
-            // Current instruction row
-            let instr_label_y = power_bar_y + 12.0 + 10.0;
-            draw_text("INSTR", panel_x + padding * 2.0, instr_label_y, small_font - 2.0, LIGHTGRAY);
+            let power_val_dims = measure_text(&power_val, self.ui_font.as_ref(), value_font_size as u16, 1.0);
+            draw_text_ex(&power_val, panel_x + card_inner_padding_x + card_bar_width - power_val_dims.width - bar_value_pad_x, power_bar_y + value_in_bar_y_offset, small_value_params.clone());
+
+            // Update current_y to below the power bar + spacing
+            current_y = power_bar_y + bar_height + row_v_spacing;
+
+            // --- Current Instruction --- 
+            let instr_label_y = current_y;
+            draw_text_ex("INSTR", panel_x + card_inner_padding_x, instr_label_y, small_gray_params.clone());
+            
             let instr_str = robot.get_current_instruction_string();
-            let instr_val_y = instr_label_y + small_font - 2.0 + 2.0;
-            draw_text(&instr_str, panel_x + padding * 2.0, instr_val_y, small_font - 2.0, WHITE);
+            let instr_val_y = instr_label_y + label_to_instr_y_offset; 
+            draw_text_ex(&instr_str, panel_x + card_inner_padding_x, instr_val_y, small_white_params.clone());
+            
+            // Update main y for next card
             y += card_height + card_spacing;
         }
     }
 
-    fn draw_announcement(msg: &str) {
+    fn draw_announcement(&self, msg: &str) {
         let rect_width = 500.0;
         let rect_height = 120.0;
         let x = (WINDOW_WIDTH as f32 / 2.0) - (rect_width / 2.0);
         let y = (WINDOW_HEIGHT as f32 / 2.0) - (rect_height / 2.0);
         draw_rectangle(x, y, rect_width, rect_height, faded_color(Color::from_rgba(0, 0, 0, 180), 1.0));
-        let font_size = 36.0;
-        let text_dims = measure_text(msg, None, font_size as u16, 1.0);
-        let text_x = x + (rect_width - text_dims.width as f32) / 2.0;
-        let text_y = y + (rect_height - font_size) / 2.0;
-        draw_text(msg, text_x, text_y, font_size, WHITE);
+        
+        // Use ui_font for announcement text
+        let font_size_announcement = 32.0;
+        let announcement_params = TextParams {
+            font: self.ui_font.as_ref(),
+            font_size: font_size_announcement as u16,
+            color: WHITE,
+            ..Default::default()
+        };
+        let text_dims = measure_text(msg, self.ui_font.as_ref(), announcement_params.font_size, 1.0);
+        let text_x = x + (rect_width - text_dims.width) / 2.0;
+        let text_y = y + (rect_height - font_size_announcement) / 2.0 + font_size_announcement * 0.7; // Adjust Y for better centering
+        draw_text_ex(msg, text_x, text_y, announcement_params);
+        
+        // Use ui_font for hint text
         let hint = "Press ESC to exit";
-        let hint_size = 20.0;
-        let hint_dims = measure_text(hint, None, hint_size as u16, 1.0);
-        let hint_x = x + (rect_width - hint_dims.width as f32) / 2.0;
-        draw_text(hint, hint_x, y + rect_height - hint_size - 10.0, hint_size, LIGHTGRAY);
+        let hint_size = 18.0;
+        let hint_params = TextParams {
+            font: self.ui_font.as_ref(),
+            font_size: hint_size as u16,
+            color: LIGHTGRAY,
+            ..Default::default()
+        };
+        let hint_dims = measure_text(hint, self.ui_font.as_ref(), hint_params.font_size, 1.0);
+        let hint_x = x + (rect_width - hint_dims.width) / 2.0;
+        draw_text_ex(hint, hint_x, y + rect_height - hint_size - 10.0, hint_params);
     }
 
     pub fn window_should_close() -> bool {

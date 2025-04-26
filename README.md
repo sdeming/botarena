@@ -135,6 +135,15 @@ MIT License. See [LICENSE](LICENSE) for details.
 
 ---
 
+## Attributions
+
+Some resources used in botarena were created by others. This could be anything from stock images, fonts, audio files, etc.
+
+### Fonts
+- [Retrauhaus](https://www.fontspace.com/retrahaus-font-f23785) by 538 Fonts
+
+---
+
 If you happen to stumble across this and decide to take a stab at writing a bot or two (it's tough, but fun!), please
 consider opening a PR so I can include your bot.
 
