@@ -1,4 +1,5 @@
 use crate::arena::Arena;
+use crate::audio::AudioManager;
 use crate::config;
 use crate::particles::ParticleSystem;
 use crate::render::Renderer;
@@ -16,6 +17,7 @@ pub struct Game {
     pub arena: Arena,
     pub robots: Vec<Robot>,
     pub particle_system: ParticleSystem,
+    pub audio_manager: AudioManager,
     pub current_turn: u32,
     pub current_cycle: u32,
     pub max_turns: u32,
@@ -26,8 +28,12 @@ pub struct Game {
 }
 
 impl Game {
-    /// Create a new game instance with the provided robot files
-    pub fn new(robot_files: &[String], max_turns: u32) -> Result<Self, Box<dyn std::error::Error>> {
+    /// Create a new game instance with the provided robot files and audio manager
+    pub fn new(
+        robot_files: &[String],
+        max_turns: u32,
+        audio_manager: AudioManager,
+    ) -> Result<Self, Box<dyn std::error::Error>> {
         // Create arena
         let arena = Arena::new();
         info!(
@@ -126,6 +132,7 @@ impl Game {
             arena,
             robots,
             particle_system,
+            audio_manager,
             current_turn: 1,
             current_cycle: 0,
             max_turns,
@@ -299,8 +306,11 @@ impl Game {
         }
 
         // Update Phase 3: Arena Updates (Handles Projectile Movement, Collision, Removal)
-        self.arena
-            .update_projectiles(&mut self.robots, &mut self.particle_system);
+        self.arena.update_projectiles(
+            &mut self.robots,
+            &mut self.particle_system,
+            &self.audio_manager,
+        );
 
         // Update Phase 3.5: Spawn Trails based on pre-calculated movements
         // Note: We iterate using the collected movements, not the potentially modified projectile list
@@ -362,11 +372,11 @@ impl Game {
         }
 
         // Update Phase 4: Command Execution
-        // Spawn projectiles and effects fired this cycle
         for command in command_queue.drain(..) {
             match command {
                 ArenaCommand::SpawnProjectile(projectile) => {
                     self.arena.spawn_projectile(projectile);
+                    self.audio_manager.play_fire();
                 }
                 ArenaCommand::SpawnMuzzleFlash {
                     position,
@@ -413,6 +423,7 @@ mod tests {
                 dummy_robot(2, Point { x: 0.2, y: 0.2 }, RobotStatus::Destroyed),
             ],
             particle_system: ParticleSystem::new(),
+            audio_manager: AudioManager::new(),
             current_turn: 1,
             current_cycle: 0,
             max_turns: 10,
@@ -445,6 +456,7 @@ mod tests {
                 RobotStatus::Active,
             )],
             particle_system: ParticleSystem::new(),
+            audio_manager: AudioManager::new(),
             current_turn: 1,
             current_cycle: 0,
             max_turns: 10,
@@ -462,6 +474,7 @@ mod tests {
             arena: Arena::new(),
             robots: vec![],
             particle_system: ParticleSystem::new(),
+            audio_manager: AudioManager::new(),
             current_turn: 1,
             current_cycle: 0,
             max_turns: 10,

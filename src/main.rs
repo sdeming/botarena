@@ -7,33 +7,47 @@ mod render;
 mod robot;
 mod types;
 mod utils;
-pub mod vm;
+mod vm;
+mod audio;
 
 use crate::config::{ARENA_WIDTH, UI_PANEL_WIDTH, WINDOW_HEIGHT};
-use clap::Parser; // <-- Add clap import
-use log::{LevelFilter, info};
+use clap::Parser;
+use log::{error, info, LevelFilter};
 use macroquad::prelude::*;
+use std::process;
 
-// --- Command Line Arguments ---
+use crate::game::Game;
+use crate::logging::init_logger;
+use crate::render::Renderer;
+use crate::audio::AudioManager;
+
+// Command line arguments structure
 #[derive(Parser, Debug)]
 #[command(author, version, about, long_about = None)]
 struct Args {
-    /// Robot assembly file(s) to load (1 to 4).
+    /// Paths to the robot program files (up to 4).
     #[arg(required = true, num_args = 1..=4)]
     robot_files: Vec<String>,
 
-    /// Maximum number of turns to simulate.
-    #[arg(long, default_value_t = config::MAX_TURNS)]
-    turns: u32,
+    /// Maximum number of turns for the simulation.
+    #[arg(short, long, default_value_t = 1000)]
+    max_turns: u32,
 
-    /// Debug filter to specify log topics (e.g., "vm,drive,robot,weapon,scan,instructions")
-    /// Available topics: vm, robot, drive, weapon, scan, instructions
+    /// Log level (off, error, warn, info, debug, trace).
+    #[arg(long, default_value = "info")]
+    log_level: String,
+
+    /// Optional comma-separated list of targets for debug/trace logging.
     #[arg(long)]
     debug_filter: Option<String>,
 
-    /// Log level (off, error, warn, info, debug, trace)
-    #[arg(long, default_value = "info")]
-    log_level: String,
+    /// Whether to place obstacles in the arena
+    #[arg(long)]
+    no_obstacles: bool,
+
+    /// Disable sound effects
+    #[arg(long)]
+    no_audio: bool,
 }
 
 fn window_conf() -> Conf {
@@ -41,7 +55,6 @@ fn window_conf() -> Conf {
         window_title: "Bot Arena".to_owned(),
         window_width: (ARENA_WIDTH + UI_PANEL_WIDTH) as i32,
         window_height: WINDOW_HEIGHT as i32,
-        window_resizable: false,
         high_dpi: true,
         ..Default::default()
     }
@@ -49,40 +62,65 @@ fn window_conf() -> Conf {
 
 #[macroquad::main(window_conf)]
 async fn main() {
-    // Parse command line arguments
     let args = Args::parse();
 
-    // Initialize the logger
-    let log_level = match args.log_level.to_lowercase().as_str() {
+    // Parse log level string
+    let log_level_filter = match args.log_level.to_lowercase().as_str() {
         "off" => LevelFilter::Off,
         "error" => LevelFilter::Error,
         "warn" => LevelFilter::Warn,
         "info" => LevelFilter::Info,
         "debug" => LevelFilter::Debug,
         "trace" => LevelFilter::Trace,
-        _ => LevelFilter::Info,
+        _ => {
+            eprintln!(
+                "Warning: Invalid log level '{}'. Defaulting to 'info'.",
+                args.log_level
+            );
+            LevelFilter::Info
+        }
     };
 
-    // Setup logger with debug filters if provided
-    if let Err(e) = logging::init_logger(log_level, args.debug_filter) {
-        eprintln!("Warning: Failed to initialize logger: {}", e);
+    // Setup logger with level and optional filter
+    if let Err(e) = init_logger(log_level_filter, args.debug_filter) {
+        eprintln!("Failed to set up logging: {}", e);
+        process::exit(1);
     }
 
-    info!("Initializing Bot Arena...");
+    info!("Bot Arena starting...");
 
-    // Create and initialize the game
-    let mut game = game::Game::new(&args.robot_files, args.turns).expect("Failed to create game");
-
-    // Initialize the renderer
-    info!("Initializing macroquad rendering system");
-    let mut renderer = render::Renderer::new();
-    renderer.init_material();
+    // Create Renderer and load fonts
+    let mut renderer = Renderer::new();
+    renderer.load_title_font().await; // Load title font
+    renderer.load_ui_font().await; // Load UI font
     renderer.init_glow_resources();
     renderer.init_scanner_material();
-    renderer.load_title_font().await;
-    renderer.load_ui_font().await;
-    info!("Renderer initialized.");
+
+    // Create AudioManager
+    let mut audio_manager = AudioManager::new();
+    // Load sounds only if --no-audio is NOT specified
+    if !args.no_audio {
+        audio_manager.load_assets().await;
+    }
+
+    // Create Game instance (passing potentially empty audio_manager)
+    let mut game = match Game::new(&args.robot_files, args.max_turns, audio_manager) {
+        Ok(g) => g,
+        Err(e) => {
+            error!("Failed to initialize game: {}", e);
+            process::exit(1);
+        }
+    };
+
+    if !args.no_obstacles {
+        game.arena.place_obstacles();
+    }
 
     // Run the game loop
-    game.run(&mut renderer).await.expect("Game loop failed");
+    if let Err(e) = game.run(&mut renderer).await {
+        error!("Game loop error: {}", e);
+        process::exit(1);
+    }
+
+    info!("Bot Arena finished.");
 }

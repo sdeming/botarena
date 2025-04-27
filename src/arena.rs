@@ -7,6 +7,7 @@ use ::rand::prelude::*;
 use macroquad::prelude::*;
 use macroquad::prelude::{ORANGE, SKYBLUE, Vec2, YELLOW};
 use std::f64::INFINITY;
+use crate::audio::AudioManager;
 
 // Represents an obstacle in the arena
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -131,6 +132,7 @@ impl Arena {
         &mut self,
         robots: &mut [Robot],
         particle_system: &mut ParticleSystem,
+        audio_manager: &AudioManager,
     ) {
         let mut i = 0;
         let sub_steps = config::PROJECTILE_SUB_STEPS;
@@ -238,6 +240,7 @@ impl Arena {
 
                         let damage = proj_base_damage * proj_power;
                         robot.health -= damage;
+                        audio_manager.play_hit();
                         log::info!(
                             "Robot {} took {:.2} damage, health remaining: {:.2}",
                             robot.id,
@@ -247,6 +250,7 @@ impl Arena {
                         if robot.health <= 0.0 {
                             robot.health = 0.0;
                             robot.status = RobotStatus::Destroyed;
+                            audio_manager.play_death();
                             log::info!("Robot {} destroyed!", robot.id);
                         }
                         self.projectiles.swap_remove(i);

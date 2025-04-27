@@ -43,16 +43,19 @@ cargo run -- bots/chaos.rasm bots/jojo.rasm
 #### Command-Line Options
 
 ```
-USAGE:
-    botarena [OPTIONS] <robot_files>...
+Usage: botarena [OPTIONS] <ROBOT_FILES>...
 
-ARGS:
-    <robot_files>...    Robot assembly file(s) to load (1 to 4)
+Arguments:
+  <ROBOT_FILES>...  Paths to the robot program files (up to 4)
 
-OPTIONS:
-    --turns <turns>         Maximum number of turns to simulate (default: 1000)
-    --debug-filter <topics> Debug filter (comma-separated, e.g. "vm,robot,drive,weapon,scan,instructions")
-    --log-level <level>     Log level: off, error, warn, info, debug, trace (default: info)
+Options:
+  -m, --max-turns <MAX_TURNS>        Maximum number of turns for the simulation [default: 1000]
+      --log-level <LOG_LEVEL>        Log level (off, error, warn, info, debug, trace) [default: info]
+      --debug-filter <DEBUG_FILTER>  Optional comma-separated list of targets for debug/trace logging
+      --no-obstacles                 Whether to place obstacles in the arena
+      --no-audio                     Disable sound effects
+  -h, --help                         Print help
+  -V, --version                      Print version
 ```
 
 Example:
@@ -136,10 +139,13 @@ MIT License. See [LICENSE](LICENSE) for details.
 
 ## Attributions
 
-Some resources used in botarena were created by others. This could be anything from stock images, fonts, audio files, etc.
+Some resources used in botarena were created by others. This could be anything from graphics, fonts, audio files, etc.
 
 ### Fonts
 - [Retrauhaus](https://www.fontspace.com/retrahaus-font-f23785) by 538 Fonts
+
+### Sound effects and audio files
+- [Kenny](https://www.kenney.nl) from the all-in-one package
 
 ---
 
