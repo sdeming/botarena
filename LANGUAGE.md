@@ -138,7 +138,6 @@ An important concept in the VM is that each instruction has a specific "cycle co
   - `drive`: 2 cycles
   - `fire`: 3 cycles
   - `scan`: 3 cycles
-  - `attack`: 5 cycles
 - **Control Flow**:
   - `call` and `ret`: 3 cycles
   - Jump instructions: 1 cycle
@@ -479,7 +478,6 @@ flowchart LR
     
     TURRET --> TURRET_OPS[Turret Operations]
     TURRET_OPS --> ROTATE_TURRET[rotate]
-    TURRET_OPS --> ATTACK[attack]
     TURRET_OPS --> FIRE[fire]
     TURRET_OPS --> SCAN[scan]
 ```
@@ -490,7 +488,6 @@ flowchart LR
 | `deselect` | Deselect current component | None | 1 | None | `@component` = 0 |
 | `rotate <operand>` | Request rotation for selected component | Angle delta (degrees) | 3 | Any | Component begins rotating (applies to selected component) |
 | `drive <operand>` | Set drive velocity | Target velocity | 2 | Drive (ID 1) | Drive begins accelerating/decelerating |
-| `attack` | Perform melee attack | None | 5 | Turret (ID 2) | Initiates melee attack |
 | `fire <operand>` | Fire ranged weapon | Power level (0.0-1.0) | 3 | Turret (ID 2) | Fires projectile |
 | `scan` | Scan for targets | None | 3 | Turret (ID 2) | Updates `@target_distance` and `@target_angle` |
 
@@ -584,8 +581,7 @@ Robots have two main components, each with different capabilities:
 
 2. **Turret** (ID 2): Controls weapons and scanning
    - `rotate`: Change direction
-   - `attack`: Melee attack
-   - `fire`: Range attack
+   - `fire`: Fire projectile
    - `scan`: Detect other robots
 
 Before using any component-specific instruction, you must first select the appropriate component using the `select` instruction:
