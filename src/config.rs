@@ -24,7 +24,7 @@ pub const DEFAULT_SCANNER_RANGE: f64 = 1.414; // Maximum arena diagonal (1.0 wid
 
 // Ranged weapon configuration
 pub const DEFAULT_RANGED_DAMAGE: f64 = 10.0; // Base damage before power/distance scaling
-pub const DEFAULT_PROJECTILE_SPEED: f64 = 0.2; // Units per cycle (20.0 units per turn at full power)
+pub const DEFAULT_PROJECTILE_SPEED: f64 = 0.2; // Units per cycle
 pub const PROJECTILE_SUB_STEPS: u32 = 1; // Number of steps for projectile collision checks per cycle
 
 // Game rules

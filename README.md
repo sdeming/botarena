@@ -28,7 +28,6 @@ There are likely many bugs and other oddities that only an AI could explain. Or 
 ### Prerequisites
 
 - Rust (edition 2024, recommended latest stable)
-- [Raylib](https://www.raylib.com/) (C library, required for rendering)
 
 ### Build & Run
 
@@ -114,9 +113,9 @@ Robots are programmed in **RASM**, a stack-based assembly language designed for 
 - **Cycles per Turn:** 100
 - **Robot Health:** 100.0 (default)
 - **Robot Power:** 1.0 (regenerates at 0.01 per cycle)
-- **Drive/Turret Rotation:** 1.8° per cycle (180° per turn)
+- **Drive/Turret Rotation:** 90° per turn
 - **Projectile Speed:** 0.2 units/cycle
-- **Scanner FOV:** 45° (±22.5°), range covers arena diagonal
+- **Scanner FOV:** 22.5° (±11.25°), range covers arena diagonal
 - **See [src/config.rs](src/config.rs) for all tunable parameters**
 
 ---
