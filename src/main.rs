@@ -9,10 +9,10 @@ mod types;
 mod utils;
 pub mod vm;
 
+use crate::config::{ARENA_WIDTH, UI_PANEL_WIDTH, WINDOW_HEIGHT};
 use clap::Parser; // <-- Add clap import
 use log::{LevelFilter, info};
 use macroquad::prelude::*;
-use crate::config::{ARENA_WIDTH, UI_PANEL_WIDTH, WINDOW_HEIGHT};
 
 // --- Command Line Arguments ---
 #[derive(Parser, Debug)]

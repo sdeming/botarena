@@ -1,8 +1,8 @@
-use crate::config; 
-use macroquad::prelude::*;
+use crate::config;
 use ::rand::Rng;
-use ::rand::thread_rng;
 use ::rand::rngs::ThreadRng;
+use ::rand::thread_rng;
+use macroquad::prelude::*;
 
 // Represents a single particle
 #[derive(Debug, Clone)]
@@ -138,7 +138,7 @@ impl ParticleSystem {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use macroquad::color::{RED, BLUE};
+    use macroquad::color::{BLUE, RED};
     use macroquad::prelude::Vec2;
 
     #[test]

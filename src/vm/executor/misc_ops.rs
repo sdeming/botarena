@@ -18,7 +18,10 @@ impl MiscellaneousOperations {
 
 impl InstructionProcessor for MiscellaneousOperations {
     fn can_process(&self, instruction: &Instruction) -> bool {
-        matches!(instruction, Instruction::Nop | Instruction::Dbg(_) | Instruction::Sleep(_))
+        matches!(
+            instruction,
+            Instruction::Nop | Instruction::Dbg(_) | Instruction::Sleep(_)
+        )
     }
 
     fn process(
@@ -79,7 +82,10 @@ mod tests {
 
     fn setup() -> (Robot, Arena, VecDeque<ArenaCommand>) {
         let arena = Arena::new();
-        let center = Point { x: arena.width / 2.0, y: arena.height / 2.0 };
+        let center = Point {
+            x: arena.width / 2.0,
+            y: arena.height / 2.0,
+        };
         let robot = Robot::new(1, "TestRobot".to_string(), Point { x: 0.5, y: 0.5 }, center);
         let command_queue = VecDeque::new();
         (robot, arena, command_queue)

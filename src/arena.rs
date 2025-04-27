@@ -3,10 +3,10 @@ use crate::config::*;
 use crate::particles::ParticleSystem;
 use crate::robot::{Robot, RobotStatus};
 use crate::types::*;
-use macroquad::prelude::{Vec2, SKYBLUE, YELLOW, ORANGE};
 use ::rand::prelude::*;
-use std::f64::INFINITY;
 use macroquad::prelude::*;
+use macroquad::prelude::{ORANGE, SKYBLUE, Vec2, YELLOW};
+use std::f64::INFINITY;
 
 // Represents an obstacle in the arena
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -399,7 +399,9 @@ impl Arena {
 
     /// Adds an obstacle at the given robot's position (for wreckage)
     pub fn add_obstacle_at_robot(&mut self, robot: &Robot) {
-        self.obstacles.push(Obstacle { position: robot.position });
+        self.obstacles.push(Obstacle {
+            position: robot.position,
+        });
     }
 }
 

@@ -17,11 +17,7 @@ impl CombatOperations {
     }
 
     // Shared helper for firing
-    fn handle_fire(
-        robot: &mut Robot,
-        power: f64,
-        command_queue: &mut VecDeque<ArenaCommand>,
-    ) {
+    fn handle_fire(robot: &mut Robot, power: f64, command_queue: &mut VecDeque<ArenaCommand>) {
         let fire_position = robot.position;
         let fire_direction = robot.turret.direction;
         if let Some(projectile) = robot.fire_weapon(power) {
@@ -60,10 +56,7 @@ impl CombatOperations {
 
 impl InstructionProcessor for CombatOperations {
     fn can_process(&self, instruction: &Instruction) -> bool {
-        matches!(
-            instruction,
-            Instruction::Fire(_) | Instruction::Scan
-        )
+        matches!(instruction, Instruction::Fire(_) | Instruction::Scan)
     }
 
     fn process(
@@ -138,28 +131,39 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::types::Point;
-    use crate::robot::Robot;
     use crate::arena::Arena;
+    use crate::robot::Robot;
+    use crate::robot::RobotStatus;
+    use crate::types::ArenaCommand;
+    use crate::types::Point;
+    use crate::vm::executor::InstructionExecutor;
     use crate::vm::instruction::Instruction;
     use crate::vm::operand::Operand;
     use crate::vm::registers::Register;
     use std::collections::VecDeque;
-    use crate::types::ArenaCommand;
-    use crate::robot::RobotStatus;
-    use crate::vm::executor::InstructionExecutor;
 
     // Helper function to create a test robot
     fn create_test_robot() -> Robot {
         let arena = Arena::new(); // Create a dummy arena to get center
-        let center = Point { x: arena.width / 2.0, y: arena.height / 2.0 };
-        Robot::new(1, "TestRobot1".to_string(), Point { x: 0.5, y: 0.5 }, center)
+        let center = Point {
+            x: arena.width / 2.0,
+            y: arena.height / 2.0,
+        };
+        Robot::new(
+            1,
+            "TestRobot1".to_string(),
+            Point { x: 0.5, y: 0.5 },
+            center,
+        )
     }
 
     // Helper function to create a test robot at a specific position
     fn create_test_robot_at(pos: Point, id: u32) -> Robot {
         let arena = Arena::new(); // Create a dummy arena to get center
-        let center = Point { x: arena.width / 2.0, y: arena.height / 2.0 };
+        let center = Point {
+            x: arena.width / 2.0,
+            y: arena.height / 2.0,
+        };
         Robot::new(id, format!("TestRobot{}", id), pos, center)
     }
 
@@ -245,19 +249,27 @@ mod tests {
         // Execute scan instruction using the main executor
         let scan = Instruction::Scan;
         let result = executor.execute_instruction(
-            &mut robot, 
+            &mut robot,
             &all_robots,
-            &arena, 
-            &scan, 
-            &mut command_queue
+            &arena,
+            &scan,
+            &mut command_queue,
         );
 
         // Scan should succeed
         assert!(result.is_ok());
 
         // Verify scan results in registers
-        let distance = robot.vm_state.registers.get(Register::TargetDistance).unwrap();
-        let angle = robot.vm_state.registers.get(Register::TargetDirection).unwrap();
+        let distance = robot
+            .vm_state
+            .registers
+            .get(Register::TargetDistance)
+            .unwrap();
+        let angle = robot
+            .vm_state
+            .registers
+            .get(Register::TargetDirection)
+            .unwrap();
 
         assert!(distance > 0.0, "Scan should have detected a target");
         let expected_angle = (other_robot_pos.y - robot.position.y)
@@ -265,7 +277,10 @@ mod tests {
             .to_degrees()
             .rem_euclid(360.0);
         assert!((angle - expected_angle).abs() < 0.1, "Scan angle mismatch");
-        assert!((distance - robot.position.distance(&other_robot_pos)).abs() < 0.001, "Scan distance mismatch");
+        assert!(
+            (distance - robot.position.distance(&other_robot_pos)).abs() < 0.001,
+            "Scan distance mismatch"
+        );
     }
 
     #[test]
@@ -280,19 +295,27 @@ mod tests {
         // Execute scan instruction
         let scan = Instruction::Scan;
         let result = executor.execute_instruction(
-            &mut robot, 
+            &mut robot,
             &all_robots,
-            &arena, 
-            &scan, 
-            &mut command_queue
+            &arena,
+            &scan,
+            &mut command_queue,
         );
 
         // Scan should succeed even with no targets
         assert!(result.is_ok());
 
         // Verify scan results are zero
-        let distance = robot.vm_state.registers.get(Register::TargetDistance).unwrap();
-        let angle = robot.vm_state.registers.get(Register::TargetDirection).unwrap();
+        let distance = robot
+            .vm_state
+            .registers
+            .get(Register::TargetDistance)
+            .unwrap();
+        let angle = robot
+            .vm_state
+            .registers
+            .get(Register::TargetDirection)
+            .unwrap();
         assert_eq!(distance, 0.0);
         assert_eq!(angle, 0.0);
     }

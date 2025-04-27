@@ -170,7 +170,7 @@ impl InstructionProcessor for BitwiseOperations {
                     .push(result as f64)
                     .map_err(|_| VMFault::StackOverflow)
             }
-            
+
             // Operand-based bitwise operations
             Instruction::AndOp(left, right) => {
                 let left_val = left.get_value(&robot.vm_state)? as u32;
@@ -214,15 +214,15 @@ impl InstructionProcessor for BitwiseOperations {
             Instruction::ShlOp(left, right) => {
                 let val = left.get_value(&robot.vm_state)? as u32;
                 let shift = right.get_value(&robot.vm_state)? as i64;
-                
+
                 // Ensure we don't attempt to shift by a negative amount
                 if shift < 0 {
                     return Err(VMFault::DivisionByZero);
                 }
-                
+
                 // Clamp shift amount to 31 bits
                 let shift_amount = if shift > 31 { 31 } else { shift as u32 };
-                
+
                 let result_val = val << shift_amount;
                 robot
                     .vm_state
@@ -233,15 +233,15 @@ impl InstructionProcessor for BitwiseOperations {
             Instruction::ShrOp(left, right) => {
                 let val = left.get_value(&robot.vm_state)? as u32;
                 let shift = right.get_value(&robot.vm_state)? as i64;
-                
+
                 // Ensure we don't attempt to shift by a negative amount
                 if shift < 0 {
                     return Err(VMFault::DivisionByZero);
                 }
-                
+
                 // Clamp shift amount to 31 bits
                 let shift_amount = if shift > 31 { 31 } else { shift as u32 };
-                
+
                 let result_val = val >> shift_amount;
                 robot
                     .vm_state
@@ -249,7 +249,7 @@ impl InstructionProcessor for BitwiseOperations {
                     .set(crate::vm::registers::Register::Result, result_val as f64)
                     .map_err(|_| VMFault::PermissionError)
             }
-            
+
             _ => Err(VMFault::InvalidInstruction),
         }
     }
@@ -270,14 +270,17 @@ mod tests {
 
     fn setup() -> (Robot, Arena, VecDeque<ArenaCommand>) {
         let arena = Arena::new();
-        let center = Point { x: arena.width / 2.0, y: arena.height / 2.0 };
+        let center = Point {
+            x: arena.width / 2.0,
+            y: arena.height / 2.0,
+        };
         let mut robot = Robot::new(0, "TestRobot".to_string(), Point { x: 0.5, y: 0.5 }, center);
         let command_queue = VecDeque::new();
-        
+
         // Initialize registers for testing
         robot.vm_state.registers.set(Register::D0, 5.0).unwrap(); // 0101 in binary
         robot.vm_state.registers.set(Register::D1, 3.0).unwrap(); // 0011 in binary
-        
+
         (robot, arena, command_queue)
     }
 
@@ -292,16 +295,15 @@ mod tests {
         assert!(processor.can_process(&Instruction::Not));
         assert!(processor.can_process(&Instruction::Shl));
         assert!(processor.can_process(&Instruction::Shr));
-        
+
         // Operand-based operations
         assert!(processor.can_process(&Instruction::AndOp(
             Operand::Value(1.0),
             Operand::Value(2.0)
         )));
-        assert!(processor.can_process(&Instruction::OrOp(
-            Operand::Value(1.0),
-            Operand::Value(2.0)
-        )));
+        assert!(
+            processor.can_process(&Instruction::OrOp(Operand::Value(1.0), Operand::Value(2.0)))
+        );
         assert!(processor.can_process(&Instruction::XorOp(
             Operand::Value(1.0),
             Operand::Value(2.0)
@@ -322,9 +324,9 @@ mod tests {
             !processor.can_process(&Instruction::Push(crate::vm::operand::Operand::Value(0.0)))
         );
     }
-    
+
     // Tests for operand-based bitwise operations
-    
+
     #[test]
     fn test_and_op() {
         let (mut robot, arena, mut command_queue) = setup();
@@ -337,14 +339,17 @@ mod tests {
             &mut robot,
             &all_robots,
             &arena,
-            &Instruction::AndOp(Operand::Register(Register::D0), Operand::Register(Register::D1)),
+            &Instruction::AndOp(
+                Operand::Register(Register::D0),
+                Operand::Register(Register::D1),
+            ),
             &mut command_queue,
         );
 
         assert!(result.is_ok());
         assert_eq!(robot.vm_state.registers.get(Register::Result).unwrap(), 1.0);
     }
-    
+
     #[test]
     fn test_or_op() {
         let (mut robot, arena, mut command_queue) = setup();
@@ -357,14 +362,17 @@ mod tests {
             &mut robot,
             &all_robots,
             &arena,
-            &Instruction::OrOp(Operand::Register(Register::D0), Operand::Register(Register::D1)),
+            &Instruction::OrOp(
+                Operand::Register(Register::D0),
+                Operand::Register(Register::D1),
+            ),
             &mut command_queue,
         );
 
         assert!(result.is_ok());
         assert_eq!(robot.vm_state.registers.get(Register::Result).unwrap(), 7.0);
     }
-    
+
     #[test]
     fn test_xor_op() {
         let (mut robot, arena, mut command_queue) = setup();
@@ -377,14 +385,17 @@ mod tests {
             &mut robot,
             &all_robots,
             &arena,
-            &Instruction::XorOp(Operand::Register(Register::D0), Operand::Register(Register::D1)),
+            &Instruction::XorOp(
+                Operand::Register(Register::D0),
+                Operand::Register(Register::D1),
+            ),
             &mut command_queue,
         );
 
         assert!(result.is_ok());
         assert_eq!(robot.vm_state.registers.get(Register::Result).unwrap(), 6.0);
     }
-    
+
     #[test]
     fn test_not_op() {
         let (mut robot, arena, mut command_queue) = setup();
@@ -402,9 +413,12 @@ mod tests {
         );
 
         assert!(result.is_ok());
-        assert_eq!(robot.vm_state.registers.get(Register::Result).unwrap(), (!5u32) as f64);
+        assert_eq!(
+            robot.vm_state.registers.get(Register::Result).unwrap(),
+            (!5u32) as f64
+        );
     }
-    
+
     #[test]
     fn test_shl_op() {
         let (mut robot, arena, mut command_queue) = setup();
@@ -422,9 +436,12 @@ mod tests {
         );
 
         assert!(result.is_ok());
-        assert_eq!(robot.vm_state.registers.get(Register::Result).unwrap(), 10.0);
+        assert_eq!(
+            robot.vm_state.registers.get(Register::Result).unwrap(),
+            10.0
+        );
     }
-    
+
     #[test]
     fn test_shr_op() {
         let (mut robot, arena, mut command_queue) = setup();
@@ -444,7 +461,7 @@ mod tests {
         assert!(result.is_ok());
         assert_eq!(robot.vm_state.registers.get(Register::Result).unwrap(), 2.0);
     }
-    
+
     #[test]
     fn test_negative_shift_op() {
         let (mut robot, arena, mut command_queue) = setup();
@@ -463,7 +480,7 @@ mod tests {
         assert!(result.is_err());
         assert!(matches!(result.unwrap_err(), VMFault::DivisionByZero));
     }
-    
+
     #[test]
     fn test_overflow_shift_op() {
         let (mut robot, arena, mut command_queue) = setup();
@@ -481,11 +498,14 @@ mod tests {
 
         assert!(result.is_ok());
         // 5 << 31 (not 100) = 10737418240
-        assert_eq!(robot.vm_state.registers.get(Register::Result).unwrap(), (5u32 << 31) as f64);
+        assert_eq!(
+            robot.vm_state.registers.get(Register::Result).unwrap(),
+            (5u32 << 31) as f64
+        );
     }
 
     // Stack-based operation tests
-    
+
     #[test]
     fn test_and() {
         let (mut robot, arena, mut command_queue) = setup();
@@ -508,7 +528,7 @@ mod tests {
         assert!(result.is_ok());
         assert_eq!(robot.vm_state.stack.pop().unwrap(), 1.0);
     }
-    
+
     #[test]
     fn test_or() {
         let (mut robot, arena, mut command_queue) = setup();
@@ -531,7 +551,7 @@ mod tests {
         assert!(result.is_ok());
         assert_eq!(robot.vm_state.stack.pop().unwrap(), 7.0);
     }
-    
+
     #[test]
     fn test_xor() {
         let (mut robot, arena, mut command_queue) = setup();
@@ -554,7 +574,7 @@ mod tests {
         assert!(result.is_ok());
         assert_eq!(robot.vm_state.stack.pop().unwrap(), 6.0);
     }
-    
+
     #[test]
     fn test_not() {
         let (mut robot, arena, mut command_queue) = setup();
@@ -579,7 +599,7 @@ mod tests {
         // For consistency with the integration test, we'll expect the unsigned value
         assert_eq!(robot.vm_state.stack.pop().unwrap(), (!5u32) as f64);
     }
-    
+
     #[test]
     fn test_shl() {
         let (mut robot, arena, mut command_queue) = setup();
@@ -602,7 +622,7 @@ mod tests {
         assert!(result.is_ok());
         assert_eq!(robot.vm_state.stack.pop().unwrap(), 4.0);
     }
-    
+
     #[test]
     fn test_shr() {
         let (mut robot, arena, mut command_queue) = setup();
@@ -625,7 +645,7 @@ mod tests {
         assert!(result.is_ok());
         assert_eq!(robot.vm_state.stack.pop().unwrap(), 2.0);
     }
-    
+
     #[test]
     fn test_negative_shift() {
         let (mut robot, arena, mut command_queue) = setup();
@@ -646,7 +666,7 @@ mod tests {
 
         assert_eq!(result, Err(VMFault::DivisionByZero));
     }
-    
+
     #[test]
     fn test_overflow_shift() {
         let (mut robot, arena, mut command_queue) = setup();

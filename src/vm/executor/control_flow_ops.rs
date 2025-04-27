@@ -285,15 +285,18 @@ impl InstructionProcessor for ControlFlowOperations {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::arena::Arena;
     use crate::robot::Robot;
     use crate::types::Point;
-    use crate::arena::Arena;
     use crate::vm::instruction::Instruction;
     use std::collections::VecDeque;
 
     fn setup() -> (Robot, Arena, VecDeque<ArenaCommand>) {
         let arena = Arena::new();
-        let center = Point { x: arena.width / 2.0, y: arena.height / 2.0 };
+        let center = Point {
+            x: arena.width / 2.0,
+            y: arena.height / 2.0,
+        };
         let mut robot = Robot::new(0, "TestRobot".to_string(), Point { x: 0.5, y: 0.5 }, center);
         let command_queue = VecDeque::new();
 
@@ -308,7 +311,10 @@ mod tests {
     fn setup_call_ret_vm() -> (Robot, Arena, VecDeque<ArenaCommand>) {
         // Initialize with default state
         let arena = Arena::new();
-        let center = Point { x: arena.width / 2.0, y: arena.height / 2.0 };
+        let center = Point {
+            x: arena.width / 2.0,
+            y: arena.height / 2.0,
+        };
         let robot = Robot::new(0, "TestRobot".to_string(), Point { x: 0.0, y: 0.0 }, center);
         // robot.vm_state.sp = 1024; // TODO: SP access needs update if required
         let command_queue = VecDeque::new();

@@ -113,9 +113,9 @@ mod tests {
     use super::*;
     use crate::arena::Arena;
     use crate::robot::Robot;
-    use crate::types::{Point, ArenaCommand};
+    use crate::types::{ArenaCommand, Point};
     use crate::vm::error::VMFault;
-    use crate::vm::executor::{processor::InstructionProcessor, InstructionExecutor};
+    use crate::vm::executor::{InstructionExecutor, processor::InstructionProcessor};
     use crate::vm::instruction::Instruction;
     use crate::vm::operand::Operand;
     use crate::vm::registers::Register;
@@ -123,7 +123,10 @@ mod tests {
 
     fn setup_vm_state() -> (Robot, Arena, VecDeque<ArenaCommand>) {
         let arena = Arena::new();
-        let center = Point { x: arena.width / 2.0, y: arena.height / 2.0 };
+        let center = Point {
+            x: arena.width / 2.0,
+            y: arena.height / 2.0,
+        };
         let mut robot = Robot::new(0, "TestRobot".to_string(), Point { x: 0.5, y: 0.5 }, center);
         let command_queue = VecDeque::new();
 
@@ -345,7 +348,10 @@ mod tests {
     fn test_memory_operations_integration() {
         let mut queue = VecDeque::new();
         let arena = Arena::new(); // Define arena first
-        let center = Point { x: arena.width / 2.0, y: arena.height / 2.0 }; // Calculate center
+        let center = Point {
+            x: arena.width / 2.0,
+            y: arena.height / 2.0,
+        }; // Calculate center
         let mut robot = Robot::new(1, "TestRobot".to_string(), Point { x: 0.0, y: 0.0 }, center); // Pass center
         let empty_robots = Vec::new();
         let executor = InstructionExecutor::new();

@@ -334,7 +334,10 @@ mod tests {
 
     fn setup() -> (Robot, Arena, VecDeque<ArenaCommand>) {
         let arena = Arena::new();
-        let center = Point { x: arena.width / 2.0, y: arena.height / 2.0 };
+        let center = Point {
+            x: arena.width / 2.0,
+            y: arena.height / 2.0,
+        };
         let mut robot = Robot::new(0, "TestRobot".to_string(), Point { x: 0.5, y: 0.5 }, center);
         let command_queue = VecDeque::new();
 
@@ -801,7 +804,10 @@ mod tests {
     #[test]
     fn test_divmod_operation_integration() {
         let arena = Arena::new();
-        let center = Point { x: arena.width / 2.0, y: arena.height / 2.0 };
+        let center = Point {
+            x: arena.width / 2.0,
+            y: arena.height / 2.0,
+        };
         let mut robot = Robot::new(0, "TestRobot".to_string(), Point { x: 0.0, y: 0.0 }, center);
         let robots = vec![robot.clone()];
         let mut q = VecDeque::new();

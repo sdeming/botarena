@@ -5,11 +5,11 @@ use crate::render::Renderer;
 use crate::robot::{Robot, RobotStatus};
 use crate::types::{ArenaCommand, Point};
 use log::{error, info};
+use macroquad::prelude::{Vec2, get_frame_time, next_frame};
 use std::collections::{HashMap, VecDeque};
 use std::fs;
-use std::process;
-use macroquad::prelude::{get_frame_time, next_frame, Vec2};
 use std::path::Path;
+use std::process;
 
 /// The Game struct encapsulates the state and logic for running the bot arena simulation
 pub struct Game {
@@ -73,7 +73,10 @@ impl Game {
         ];
 
         // Load robot programs
-        let center = Point { x: arena.width / 2.0, y: arena.height / 2.0 }; // Calculate center
+        let center = Point {
+            x: arena.width / 2.0,
+            y: arena.height / 2.0,
+        }; // Calculate center
         for (i, filename) in robot_files.iter().enumerate() {
             let robot_id = (i + 1) as u32;
             let position = positions[i];
@@ -140,7 +143,10 @@ impl Game {
         let mut announcement: Option<String> = None;
         let mut game_ended = false;
 
-        while !Renderer::window_should_close() && self.current_turn <= self.max_turns && !self.game_over {
+        while !Renderer::window_should_close()
+            && self.current_turn <= self.max_turns
+            && !self.game_over
+        {
             // Time accumulation
             let frame_time = get_frame_time();
             self.time_accumulator += frame_time;
@@ -177,13 +183,11 @@ impl Game {
         // Prepare announcement message
         if self.game_over {
             game_ended = true;
-            announcement = Some(
-                if let Some(winner_id) = self.winner {
-                    format!("Robot {} Wins!", winner_id)
-                } else {
-                    "Draw!".to_string()
-                }
-            );
+            announcement = Some(if let Some(winner_id) = self.winner {
+                format!("Robot {} Wins!", winner_id)
+            } else {
+                "Draw!".to_string()
+            });
         }
         info!("Exiting Bot Arena.");
 
@@ -375,8 +379,10 @@ mod tests {
     fn test_destroyed_robot_removal_and_obstacle_placement() {
         let mut game = Game {
             arena: Arena::new(),
-            robots: vec![dummy_robot(1, Point { x: 0.1, y: 0.1 }, RobotStatus::Active),
-                         dummy_robot(2, Point { x: 0.2, y: 0.2 }, RobotStatus::Destroyed)],
+            robots: vec![
+                dummy_robot(1, Point { x: 0.1, y: 0.1 }, RobotStatus::Active),
+                dummy_robot(2, Point { x: 0.2, y: 0.2 }, RobotStatus::Destroyed),
+            ],
             particle_system: ParticleSystem::new(),
             current_turn: 1,
             current_cycle: 0,
@@ -404,7 +410,11 @@ mod tests {
         // Test win condition: one robot left
         let mut game = Game {
             arena: Arena::new(),
-            robots: vec![dummy_robot(1, Point { x: 0.1, y: 0.1 }, RobotStatus::Active)],
+            robots: vec![dummy_robot(
+                1,
+                Point { x: 0.1, y: 0.1 },
+                RobotStatus::Active,
+            )],
             particle_system: ParticleSystem::new(),
             current_turn: 1,
             current_cycle: 0,

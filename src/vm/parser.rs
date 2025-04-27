@@ -441,7 +441,7 @@ pub fn parse_assembly(
                     // Stack form
                     Ok(Instruction::Add)
                 }
-            },
+            }
             "sub" => {
                 if parts.len() > 2 {
                     // Operand form
@@ -452,7 +452,7 @@ pub fn parse_assembly(
                     // Stack form
                     Ok(Instruction::Sub)
                 }
-            },
+            }
             "mul" => {
                 if parts.len() > 2 {
                     // Operand form
@@ -463,7 +463,7 @@ pub fn parse_assembly(
                     // Stack form
                     Ok(Instruction::Mul)
                 }
-            },
+            }
             "div" => {
                 if parts.len() > 2 {
                     // Operand form
@@ -474,7 +474,7 @@ pub fn parse_assembly(
                     // Stack form
                     Ok(Instruction::Div)
                 }
-            },
+            }
             "mod" => {
                 if parts.len() > 2 {
                     // Operand form
@@ -485,7 +485,7 @@ pub fn parse_assembly(
                     // Stack form
                     Ok(Instruction::Mod)
                 }
-            },
+            }
             "divmod" => Ok(Instruction::Divmod),
             "pow" => {
                 if parts.len() > 2 {
@@ -497,7 +497,7 @@ pub fn parse_assembly(
                     // Stack form
                     Ok(Instruction::Pow)
                 }
-            },
+            }
             "sqrt" => {
                 if parts.len() > 1 {
                     // Operand form
@@ -507,7 +507,7 @@ pub fn parse_assembly(
                     // Stack form
                     Ok(Instruction::Sqrt)
                 }
-            },
+            }
             "log" => {
                 if parts.len() > 1 {
                     // Operand form
@@ -517,7 +517,7 @@ pub fn parse_assembly(
                     // Stack form
                     Ok(Instruction::Log)
                 }
-            },
+            }
             "sin" => {
                 if parts.len() > 1 {
                     // Operand form
@@ -527,7 +527,7 @@ pub fn parse_assembly(
                     // Stack form
                     Ok(Instruction::Sin)
                 }
-            },
+            }
             "cos" => {
                 if parts.len() > 1 {
                     // Operand form
@@ -537,7 +537,7 @@ pub fn parse_assembly(
                     // Stack form
                     Ok(Instruction::Cos)
                 }
-            },
+            }
             "tan" => {
                 if parts.len() > 1 {
                     // Operand form
@@ -547,7 +547,7 @@ pub fn parse_assembly(
                     // Stack form
                     Ok(Instruction::Tan)
                 }
-            },
+            }
             "asin" => {
                 if parts.len() > 1 {
                     // Operand form
@@ -557,7 +557,7 @@ pub fn parse_assembly(
                     // Stack form
                     Ok(Instruction::Asin)
                 }
-            },
+            }
             "acos" => {
                 if parts.len() > 1 {
                     // Operand form
@@ -567,7 +567,7 @@ pub fn parse_assembly(
                     // Stack form
                     Ok(Instruction::Acos)
                 }
-            },
+            }
             "atan" => {
                 if parts.len() > 1 {
                     // Operand form
@@ -577,7 +577,7 @@ pub fn parse_assembly(
                     // Stack form
                     Ok(Instruction::Atan)
                 }
-            },
+            }
             "atan2" => {
                 if parts.len() > 2 {
                     // Operand form
@@ -588,7 +588,7 @@ pub fn parse_assembly(
                     // Stack form
                     Ok(Instruction::Atan2)
                 }
-            },
+            }
             "abs" => {
                 if parts.len() > 1 {
                     // Operand form
@@ -598,7 +598,7 @@ pub fn parse_assembly(
                     // Stack form
                     Ok(Instruction::Abs)
                 }
-            },
+            }
             "and" => {
                 if parts.len() > 2 {
                     // Operand form
@@ -609,7 +609,7 @@ pub fn parse_assembly(
                     // Stack form
                     Ok(Instruction::And)
                 }
-            },
+            }
             "or" => {
                 if parts.len() > 2 {
                     // Operand form
@@ -620,7 +620,7 @@ pub fn parse_assembly(
                     // Stack form
                     Ok(Instruction::Or)
                 }
-            },
+            }
             "xor" => {
                 if parts.len() > 2 {
                     // Operand form
@@ -631,7 +631,7 @@ pub fn parse_assembly(
                     // Stack form
                     Ok(Instruction::Xor)
                 }
-            },
+            }
             "not" => {
                 if parts.len() > 1 {
                     // Operand form
@@ -641,7 +641,7 @@ pub fn parse_assembly(
                     // Stack form
                     Ok(Instruction::Not)
                 }
-            },
+            }
             "shl" => {
                 if parts.len() > 2 {
                     // Operand form
@@ -652,7 +652,7 @@ pub fn parse_assembly(
                     // Stack form
                     Ok(Instruction::Shl)
                 }
-            },
+            }
             "shr" => {
                 if parts.len() > 2 {
                     // Operand form
@@ -663,7 +663,7 @@ pub fn parse_assembly(
                     // Stack form
                     Ok(Instruction::Shr)
                 }
-            },
+            }
             "jmp" | "jz" | "jnz" | "jl" | "jle" | "jg" | "jge" | "je" | "jne" => {
                 let target_label = parts.get(1).ok_or(ParseError {
                     line: line_num,
@@ -1448,10 +1448,14 @@ mod tests {
             result.err()
         );
         let program = result.unwrap();
-        
+
         // Check all 17 instructions
-        assert_eq!(program.instructions.len(), 17, "Expected 17 stack arithmetic instructions");
-        
+        assert_eq!(
+            program.instructions.len(),
+            17,
+            "Expected 17 stack arithmetic instructions"
+        );
+
         // Verify each instruction type
         assert!(matches!(program.instructions[0], Instruction::Add));
         assert!(matches!(program.instructions[1], Instruction::Sub));
@@ -1501,127 +1505,131 @@ mod tests {
             result.err()
         );
         let program = result.unwrap();
-        
+
         // Check all 16 instructions (no operand form for divmod)
-        assert_eq!(program.instructions.len(), 16, "Expected 16 operand arithmetic instructions");
-        
+        assert_eq!(
+            program.instructions.len(),
+            16,
+            "Expected 16 operand arithmetic instructions"
+        );
+
         // Verify each instruction type and its operands
         match &program.instructions[0] {
             Instruction::AddOp(left, right) => {
                 assert!(matches!(left, &Operand::Value(5.0)));
                 assert!(matches!(right, &Operand::Value(10.0)));
-            },
+            }
             _ => panic!("Expected AddOp instruction"),
         }
-        
+
         match &program.instructions[1] {
             Instruction::SubOp(left, right) => {
                 assert!(matches!(left, &Operand::Register(Register::D0)));
                 assert!(matches!(right, &Operand::Value(2.0)));
-            },
+            }
             _ => panic!("Expected SubOp instruction"),
         }
-        
+
         match &program.instructions[2] {
             Instruction::MulOp(left, right) => {
                 assert!(matches!(left, &Operand::Value(3.0)));
                 assert!(matches!(right, &Operand::Register(Register::D1)));
-            },
+            }
             _ => panic!("Expected MulOp instruction"),
         }
-        
+
         match &program.instructions[3] {
             Instruction::DivOp(left, right) => {
                 assert!(matches!(left, &Operand::Register(Register::D2)));
                 assert!(matches!(right, &Operand::Register(Register::D3)));
-            },
+            }
             _ => panic!("Expected DivOp instruction"),
         }
-        
+
         match &program.instructions[4] {
             Instruction::ModOp(left, right) => {
                 assert!(matches!(left, &Operand::Value(10.0)));
                 assert!(matches!(right, &Operand::Value(3.0)));
-            },
+            }
             _ => panic!("Expected ModOp instruction"),
         }
-        
+
         match &program.instructions[5] {
             Instruction::PowOp(left, right) => {
                 assert!(matches!(left, &Operand::Value(2.0)));
                 assert!(matches!(right, &Operand::Value(3.0)));
-            },
+            }
             _ => panic!("Expected PowOp instruction"),
         }
-        
+
         match &program.instructions[6] {
             Instruction::SqrtOp(op) => {
                 assert!(matches!(op, &Operand::Value(16.0)));
-            },
+            }
             _ => panic!("Expected SqrtOp instruction"),
         }
-        
+
         match &program.instructions[7] {
             Instruction::LogOp(op) => {
                 assert!(matches!(op, &Operand::Value(2.718)));
-            },
+            }
             _ => panic!("Expected LogOp instruction"),
         }
-        
+
         match &program.instructions[8] {
             Instruction::SinOp(op) => {
                 assert!(matches!(op, &Operand::Value(90.0)));
-            },
+            }
             _ => panic!("Expected SinOp instruction"),
         }
-        
+
         match &program.instructions[9] {
             Instruction::CosOp(op) => {
                 assert!(matches!(op, &Operand::Value(0.0)));
-            },
+            }
             _ => panic!("Expected CosOp instruction"),
         }
-        
+
         match &program.instructions[10] {
             Instruction::TanOp(op) => {
                 assert!(matches!(op, &Operand::Value(45.0)));
-            },
+            }
             _ => panic!("Expected TanOp instruction"),
         }
-        
+
         match &program.instructions[11] {
             Instruction::AsinOp(op) => {
                 assert!(matches!(op, &Operand::Value(0.5)));
-            },
+            }
             _ => panic!("Expected AsinOp instruction"),
         }
-        
+
         match &program.instructions[12] {
             Instruction::AcosOp(op) => {
                 assert!(matches!(op, &Operand::Value(0.0)));
-            },
+            }
             _ => panic!("Expected AcosOp instruction"),
         }
-        
+
         match &program.instructions[13] {
             Instruction::AtanOp(op) => {
                 assert!(matches!(op, &Operand::Value(1.0)));
-            },
+            }
             _ => panic!("Expected AtanOp instruction"),
         }
-        
+
         match &program.instructions[14] {
             Instruction::Atan2Op(left, right) => {
                 assert!(matches!(left, &Operand::Value(1.0)));
                 assert!(matches!(right, &Operand::Value(1.0)));
-            },
+            }
             _ => panic!("Expected Atan2Op instruction"),
         }
-        
+
         match &program.instructions[15] {
             Instruction::AbsOp(op) => {
                 assert!(matches!(op, &Operand::Value(-5.0)));
-            },
+            }
             _ => panic!("Expected AbsOp instruction"),
         }
     }
@@ -1645,10 +1653,14 @@ mod tests {
             result.err()
         );
         let program = result.unwrap();
-        
+
         // Check all 6 instructions
-        assert_eq!(program.instructions.len(), 6, "Expected 6 stack bitwise instructions");
-        
+        assert_eq!(
+            program.instructions.len(),
+            6,
+            "Expected 6 stack bitwise instructions"
+        );
+
         // Verify each instruction type
         assert!(matches!(program.instructions[0], Instruction::And));
         assert!(matches!(program.instructions[1], Instruction::Or));
@@ -1677,55 +1689,59 @@ mod tests {
             result.err()
         );
         let program = result.unwrap();
-        
+
         // Check all 6 instructions
-        assert_eq!(program.instructions.len(), 6, "Expected 6 operand bitwise instructions");
-        
+        assert_eq!(
+            program.instructions.len(),
+            6,
+            "Expected 6 operand bitwise instructions"
+        );
+
         // Verify each instruction type and its operands
         match &program.instructions[0] {
             Instruction::AndOp(left, right) => {
                 assert!(matches!(left, &Operand::Value(5.0)));
                 assert!(matches!(right, &Operand::Value(10.0)));
-            },
+            }
             _ => panic!("Expected AndOp instruction"),
         }
-        
+
         match &program.instructions[1] {
             Instruction::OrOp(left, right) => {
                 assert!(matches!(left, &Operand::Register(Register::D0)));
                 assert!(matches!(right, &Operand::Value(2.0)));
-            },
+            }
             _ => panic!("Expected OrOp instruction"),
         }
-        
+
         match &program.instructions[2] {
             Instruction::XorOp(left, right) => {
                 assert!(matches!(left, &Operand::Value(3.0)));
                 assert!(matches!(right, &Operand::Register(Register::D1)));
-            },
+            }
             _ => panic!("Expected XorOp instruction"),
         }
-        
+
         match &program.instructions[3] {
             Instruction::NotOp(op) => {
                 assert!(matches!(op, &Operand::Value(15.0)));
-            },
+            }
             _ => panic!("Expected NotOp instruction"),
         }
-        
+
         match &program.instructions[4] {
             Instruction::ShlOp(left, right) => {
                 assert!(matches!(left, &Operand::Register(Register::D2)));
                 assert!(matches!(right, &Operand::Value(4.0)));
-            },
+            }
             _ => panic!("Expected ShlOp instruction"),
         }
-        
+
         match &program.instructions[5] {
             Instruction::ShrOp(left, right) => {
                 assert!(matches!(left, &Operand::Value(16.0)));
                 assert!(matches!(right, &Operand::Value(2.0)));
-            },
+            }
             _ => panic!("Expected ShrOp instruction"),
         }
     }
@@ -1756,10 +1772,14 @@ mod tests {
             result.err()
         );
         let program = result.unwrap();
-        
+
         // Check 12 instructions
-        assert_eq!(program.instructions.len(), 12, "Expected 12 control flow instructions");
-        
+        assert_eq!(
+            program.instructions.len(),
+            12,
+            "Expected 12 control flow instructions"
+        );
+
         // Verify each instruction type
         assert!(matches!(program.instructions[0], Instruction::Jmp(0)));
         assert!(matches!(program.instructions[1], Instruction::Jz(0)));
@@ -1792,31 +1812,35 @@ mod tests {
             result.err()
         );
         let program = result.unwrap();
-        
+
         // Check 4 instructions
-        assert_eq!(program.instructions.len(), 4, "Expected 4 component instructions");
-        
+        assert_eq!(
+            program.instructions.len(),
+            4,
+            "Expected 4 component instructions"
+        );
+
         // Verify each instruction type and its operands
         match &program.instructions[0] {
             Instruction::Select(op) => {
                 assert!(matches!(op, &Operand::Value(1.0)));
-            },
+            }
             _ => panic!("Expected Select instruction"),
         }
-        
+
         assert!(matches!(program.instructions[1], Instruction::Deselect));
-        
+
         match &program.instructions[2] {
             Instruction::Rotate(op) => {
                 assert!(matches!(op, &Operand::Value(45.0)));
-            },
+            }
             _ => panic!("Expected Rotate instruction"),
         }
-        
+
         match &program.instructions[3] {
             Instruction::Drive(op) => {
                 assert!(matches!(op, &Operand::Value(0.5)));
-            },
+            }
             _ => panic!("Expected Drive instruction"),
         }
     }
@@ -1846,78 +1870,82 @@ mod tests {
             result.err()
         );
         let program = result.unwrap();
-        
+
         // Check 12 instructions
-        assert_eq!(program.instructions.len(), 12, "Expected 12 stack/register instructions");
-        
+        assert_eq!(
+            program.instructions.len(),
+            12,
+            "Expected 12 stack/register instructions"
+        );
+
         // Verify each instruction type and its operands
         match &program.instructions[0] {
             Instruction::Push(op) => {
                 assert!(matches!(op, &Operand::Value(42.0)));
-            },
+            }
             _ => panic!("Expected Push instruction with value"),
         }
-        
+
         match &program.instructions[1] {
             Instruction::Push(op) => {
                 assert!(matches!(op, &Operand::Register(Register::D0)));
-            },
+            }
             _ => panic!("Expected Push instruction with register"),
         }
-        
+
         match &program.instructions[2] {
             Instruction::Pop(reg) => {
                 assert_eq!(*reg, Register::D1);
-            },
+            }
             _ => panic!("Expected Pop instruction to register"),
         }
-        
+
         assert!(matches!(program.instructions[3], Instruction::PopDiscard));
         assert!(matches!(program.instructions[4], Instruction::Dup));
         assert!(matches!(program.instructions[5], Instruction::Swap));
-        
+
         match &program.instructions[6] {
             Instruction::Mov(reg, op) => {
                 assert_eq!(*reg, Register::D2);
                 assert!(matches!(op, &Operand::Value(10.0)));
-            },
+            }
             _ => panic!("Expected Mov instruction with value"),
         }
-        
+
         match &program.instructions[7] {
             Instruction::Mov(reg, op) => {
                 assert_eq!(*reg, Register::D3);
                 assert!(matches!(op, &Operand::Register(Register::D4)));
-            },
+            }
             _ => panic!("Expected Mov instruction with registers"),
         }
-        
+
         match &program.instructions[8] {
             Instruction::Lod(reg) => {
                 assert_eq!(*reg, Register::D5);
-            },
+            }
             _ => panic!("Expected Lod instruction"),
         }
-        
+
         match &program.instructions[9] {
             Instruction::Sto(op) => {
                 assert!(matches!(op, &Operand::Value(3.14)));
-            },
+            }
             _ => panic!("Expected Sto instruction with value"),
         }
-        
+
         match &program.instructions[10] {
             Instruction::Sto(op) => {
                 assert!(matches!(op, &Operand::Register(Register::D6)));
-            },
+            }
             _ => panic!("Expected Sto instruction with register"),
         }
-        
+
         match &program.instructions[11] {
             Instruction::Cmp(left, right) => {
                 assert!(matches!(left, &Operand::Register(Register::D7)));
                 assert!(matches!(right, &Operand::Register(Register::D8)));
-            },
+            }
             _ => panic!("Expected Cmp instruction"),
         }
     }
@@ -1938,24 +1966,28 @@ mod tests {
             result.err()
         );
         let program = result.unwrap();
-        
+
         // Check 3 instructions
-        assert_eq!(program.instructions.len(), 3, "Expected 3 misc instructions");
-        
+        assert_eq!(
+            program.instructions.len(),
+            3,
+            "Expected 3 misc instructions"
+        );
+
         // Verify each instruction type
         assert!(matches!(program.instructions[0], Instruction::Nop));
-        
+
         match &program.instructions[1] {
             Instruction::Dbg(op) => {
                 assert!(matches!(op, &Operand::Value(123.456)));
-            },
+            }
             _ => panic!("Expected Dbg instruction with value"),
         }
-        
+
         match &program.instructions[2] {
             Instruction::Dbg(op) => {
                 assert!(matches!(op, &Operand::Register(Register::D0)));
-            },
+            }
             _ => panic!("Expected Dbg instruction with register"),
         }
     }
@@ -1971,16 +2003,44 @@ mod tests {
             sub @d1 1
         "#;
         let result = parse_assembly(source, None);
-        assert!(result.is_ok(), "Parser should accept both comma and space separators: {:?}", result.err());
+        assert!(
+            result.is_ok(),
+            "Parser should accept both comma and space separators: {:?}",
+            result.err()
+        );
         let program = result.unwrap();
         // There should be 6 instructions
         assert_eq!(program.instructions.len(), 6);
         // Check that the instructions are parsed as expected
-        assert!(matches!(program.instructions[0], Instruction::Mov(Register::D1, Operand::Value(4.0))));
-        assert!(matches!(program.instructions[1], Instruction::Mov(Register::D2, Operand::Value(5.0))));
-        assert!(matches!(program.instructions[2], Instruction::AddOp(Operand::Register(Register::D1), Operand::Register(Register::D2))));
-        assert!(matches!(program.instructions[3], Instruction::AddOp(Operand::Register(Register::D1), Operand::Register(Register::D2))));
-        assert!(matches!(program.instructions[4], Instruction::SubOp(Operand::Register(Register::D1), Operand::Value(1.0))));
-        assert!(matches!(program.instructions[5], Instruction::SubOp(Operand::Register(Register::D1), Operand::Value(1.0))));
+        assert!(matches!(
+            program.instructions[0],
+            Instruction::Mov(Register::D1, Operand::Value(4.0))
+        ));
+        assert!(matches!(
+            program.instructions[1],
+            Instruction::Mov(Register::D2, Operand::Value(5.0))
+        ));
+        assert!(matches!(
+            program.instructions[2],
+            Instruction::AddOp(
+                Operand::Register(Register::D1),
+                Operand::Register(Register::D2)
+            )
+        ));
+        assert!(matches!(
+            program.instructions[3],
+            Instruction::AddOp(
+                Operand::Register(Register::D1),
+                Operand::Register(Register::D2)
+            )
+        ));
+        assert!(matches!(
+            program.instructions[4],
+            Instruction::SubOp(Operand::Register(Register::D1), Operand::Value(1.0))
+        ));
+        assert!(matches!(
+            program.instructions[5],
+            Instruction::SubOp(Operand::Register(Register::D1), Operand::Value(1.0))
+        ));
     }
 }

@@ -1,5 +1,6 @@
 use crate::arena::Arena;
 use crate::config;
+use crate::types::Scanner;
 use crate::types::*;
 use crate::vm;
 use crate::vm::instruction::Instruction;
@@ -9,7 +10,6 @@ use rand::prelude::*;
 use std::collections::VecDeque;
 use std::f64::INFINITY;
 use std::f64::consts::PI;
-use crate::types::Scanner;
 
 // Represents the possible states of a robot
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -61,7 +61,7 @@ impl Default for TurretComponent {
 // Represents a robot in the arena
 #[derive(Debug, Clone)]
 pub struct Robot {
-    pub id: u32, // Unique identifier
+    pub id: u32,      // Unique identifier
     pub name: String, // Name derived from filename
     pub position: Point,
     pub prev_position: Point, // <-- Add previous position
@@ -904,11 +904,11 @@ mod tests {
     use crate::types::ArenaCommand;
     // Import ArenaCommand
     use crate::types::Point;
-    use crate::vm::parser::{ParsedProgram, parse_assembly};
-    use crate::vm::registers::Register;
-    use crate::vm::instruction::Instruction;
     use crate::vm::executor::Operand;
     use crate::vm::executor::processor::InstructionProcessor;
+    use crate::vm::instruction::Instruction;
+    use crate::vm::parser::{ParsedProgram, parse_assembly};
+    use crate::vm::registers::Register;
 
     // For float comparisons
 
@@ -944,24 +944,30 @@ mod tests {
     fn test_basic_movement() {
         // Create a larger arena with no obstacles for testing
         let mut arena = Arena::new();
-        
+
         // Override with a 10x10 arena (10 times bigger than default)
         arena.width = 10.0;
         arena.height = 10.0;
         arena.grid_width = 200; // 10*20
         arena.grid_height = 200; // 10*20
         arena.obstacles.clear(); // Make sure there are no obstacles
-        
+
         // Position the robot farther from the edge at (1.0, 1.0) to ensure it can move a full unit
-        let center = Point { x: arena.width / 2.0, y: arena.height / 2.0 };
+        let center = Point {
+            x: arena.width / 2.0,
+            y: arena.height / 2.0,
+        };
         let mut robot = Robot::new(0, String::new(), Point { x: 1.0, y: 1.0 }, center);
         let mut command_queue = VecDeque::new();
 
         // Print arena size
         println!("Arena size: width={}, height={}", arena.width, arena.height);
-        println!("Arena grid: {}x{} units", arena.grid_width, arena.grid_height);
+        println!(
+            "Arena grid: {}x{} units",
+            arena.grid_width, arena.grid_height
+        );
         println!("Unit size: {}", arena.unit_size);
-        
+
         let program = parse_program(
             r#"
             select 1      ; select drive
@@ -978,7 +984,7 @@ mod tests {
         // Execute the drive instruction
         simulate_cycle(&mut robot, &[], &arena, &mut command_queue);
 
-        // Execute the rotate instruction 
+        // Execute the rotate instruction
         simulate_cycle(&mut robot, &[], &arena, &mut command_queue);
 
         // Explicitly set direction to 0 for this test, overriding center-facing default
@@ -986,30 +992,38 @@ mod tests {
 
         // Expected velocity is 1.0 * UNIT_SIZE / CYCLES_PER_TURN coordinate units per cycle
         let expected_velocity = config::UNIT_SIZE / config::CYCLES_PER_TURN as f64;
-        
+
         // Debug print
         println!(
-            "Before movement: velocity = {} coordinate units per cycle (expected {})", 
-            robot.drive.velocity, 
-            expected_velocity
+            "Before movement: velocity = {} coordinate units per cycle (expected {})",
+            robot.drive.velocity, expected_velocity
         );
-        
+
         // Check the expected collision distance at the start
-        let start_collision_distance = arena.distance_to_collision(robot.position, robot.drive.direction);
-        println!("Initial distance to collision: {} coordinate units", start_collision_distance);
-        
+        let start_collision_distance =
+            arena.distance_to_collision(robot.position, robot.drive.direction);
+        println!(
+            "Initial distance to collision: {} coordinate units",
+            start_collision_distance
+        );
+
         // Verify that the expected move distance is reasonable
         let expected_move_distance = expected_velocity * config::CYCLES_PER_TURN as f64;
-        println!("Expected to move {} coordinate units in one turn ({} grid units)", 
-             expected_move_distance, expected_move_distance / config::UNIT_SIZE);
-        
+        println!(
+            "Expected to move {} coordinate units in one turn ({} grid units)",
+            expected_move_distance,
+            expected_move_distance / config::UNIT_SIZE
+        );
+
         if start_collision_distance < expected_move_distance {
-            println!("WARNING: Distance to collision ({}) is less than expected move distance ({}). Robot will stop early!", 
-                start_collision_distance, expected_move_distance);
+            println!(
+                "WARNING: Distance to collision ({}) is less than expected move distance ({}). Robot will stop early!",
+                start_collision_distance, expected_move_distance
+            );
         }
-        
+
         assert!(
-            (robot.drive.velocity - expected_velocity).abs() < 1e-9, 
+            (robot.drive.velocity - expected_velocity).abs() < 1e-9,
             "Drive velocity should be {}, but was {}",
             expected_velocity,
             robot.drive.velocity
@@ -1017,30 +1031,34 @@ mod tests {
 
         // Now simulate a full turn (CYCLES_PER_TURN cycles) to verify movement
         let start_x = robot.position.x;
-        
+
         // Track total distance moved
         let mut total_distance = 0.0;
-        
+
         // Process movement for a full turn
         for i in 0..config::CYCLES_PER_TURN {
             let pos_before = robot.position.x;
-            
+
             // Check if we're about to hit something
             if i % 10 == 0 || i == 99 {
-                let remaining_dist = arena.distance_to_collision(robot.position, robot.drive.direction);
-                println!("Cycle {}: Distance to collision: {} coordinate units", i, remaining_dist);
+                let remaining_dist =
+                    arena.distance_to_collision(robot.position, robot.drive.direction);
+                println!(
+                    "Cycle {}: Distance to collision: {} coordinate units",
+                    i, remaining_dist
+                );
             }
-            
+
             robot.process_cycle_updates(&arena);
             let distance_this_cycle = robot.position.x - pos_before;
             total_distance += distance_this_cycle;
-            
+
             // Print some debug info every 10 cycles
             if i % 10 == 0 || i == config::CYCLES_PER_TURN - 1 {
                 println!(
-                    "Cycle {}: moved {} coord units this cycle, total so far = {} coord units ({} grid units), velocity = {}, position = ({}, {})", 
-                    i, 
-                    distance_this_cycle, 
+                    "Cycle {}: moved {} coord units this cycle, total so far = {} coord units ({} grid units), velocity = {}, position = ({}, {})",
+                    i,
+                    distance_this_cycle,
                     total_distance,
                     total_distance / config::UNIT_SIZE,
                     robot.drive.velocity,
@@ -1052,9 +1070,12 @@ mod tests {
 
         // Check that the robot moved ~0.05 coordinate units (1 grid unit)
         let distance_moved = robot.position.x - start_x;
-        println!("Final distance moved: {} coordinate units ({} grid units)", 
-            distance_moved, distance_moved / config::UNIT_SIZE);
-        
+        println!(
+            "Final distance moved: {} coordinate units ({} grid units)",
+            distance_moved,
+            distance_moved / config::UNIT_SIZE
+        );
+
         // For the test, we'll check if the robot moved 1 grid unit (with a small tolerance)
         assert!(
             (distance_moved - config::UNIT_SIZE).abs() < 0.001,
@@ -1069,30 +1090,41 @@ mod tests {
     fn test_fractional_movement() {
         // Create a larger arena with no obstacles for testing
         let mut arena = Arena::new();
-        
+
         // Override with a 10x10 arena
         arena.width = 10.0;
         arena.height = 10.0;
         arena.grid_width = 200; // 10*20
         arena.grid_height = 200; // 10*20
         arena.obstacles.clear(); // Make sure there are no obstacles
-        
+
         // Position the robot away from the edges
-        let center = Point { x: arena.width / 2.0, y: arena.height / 2.0 };
+        let center = Point {
+            x: arena.width / 2.0,
+            y: arena.height / 2.0,
+        };
         let mut robot = Robot::new(0, String::new(), Point { x: 1.0, y: 1.0 }, center);
         let mut command_queue = VecDeque::new();
 
         // First select drive component
         robot.vm_state.set_selected_component(1).unwrap();
-        
+
         // Set velocity to 0.5 grid units per turn (using the Drive instruction directly)
         let drive_instruction = Instruction::Drive(Operand::Value(0.5));
         let processor = vm::executor::ComponentOperations::new();
-        processor.process(&mut robot, &[], &arena, &drive_instruction, &mut command_queue).unwrap();
-        
+        processor
+            .process(
+                &mut robot,
+                &[],
+                &arena,
+                &drive_instruction,
+                &mut command_queue,
+            )
+            .unwrap();
+
         // Expected velocity is 0.5 * UNIT_SIZE / CYCLES_PER_TURN coordinate units per cycle
         let expected_velocity = 0.5 * config::UNIT_SIZE / config::CYCLES_PER_TURN as f64;
-        
+
         // Check if velocity was set correctly
         assert!(
             (robot.drive.velocity - expected_velocity).abs() < 1e-9,
@@ -1100,13 +1132,13 @@ mod tests {
             expected_velocity,
             robot.drive.velocity
         );
-        
+
         // Set direction to east (0 degrees)
         robot.drive.direction = 0.0;
-        
+
         // Now simulate a full turn (CYCLES_PER_TURN cycles) to verify movement
         let start_x = robot.position.x;
-        
+
         // Process movement for a full turn
         for _ in 0..config::CYCLES_PER_TURN {
             robot.process_cycle_updates(&arena);
@@ -1114,9 +1146,12 @@ mod tests {
 
         // Check that the robot moved ~0.025 coordinate units (0.5 grid units)
         let distance_moved = robot.position.x - start_x;
-        println!("Fractional test: moved {} coordinate units ({} grid units) with drive 0.5", 
-            distance_moved, distance_moved / config::UNIT_SIZE);
-        
+        println!(
+            "Fractional test: moved {} coordinate units ({} grid units) with drive 0.5",
+            distance_moved,
+            distance_moved / config::UNIT_SIZE
+        );
+
         assert!(
             (distance_moved - 0.5 * config::UNIT_SIZE).abs() < 0.001,
             "Robot should move {} coordinate units (0.5 grid units) per turn with drive 0.5, but moved {} coordinate units",
@@ -1127,7 +1162,12 @@ mod tests {
 
     #[test]
     fn test_component_switching() {
-        let mut robot = Robot::new(0, String::new(), Point { x: 0.5, y: 0.5 }, Point { x: 0.5, y: 0.5 });
+        let mut robot = Robot::new(
+            0,
+            String::new(),
+            Point { x: 0.5, y: 0.5 },
+            Point { x: 0.5, y: 0.5 },
+        );
         let arena = Arena::default();
         let mut command_queue = VecDeque::new();
 
@@ -1160,7 +1200,10 @@ mod tests {
         simulate_cycle(&mut robot, &[], &arena, &mut command_queue);
 
         // Check if rotation was set
-        assert_ne!(robot.turret.pending_rotation, 0.0, "Turret rotation should be set");
+        assert_ne!(
+            robot.turret.pending_rotation, 0.0,
+            "Turret rotation should be set"
+        );
 
         // Verify no commands were queued
         crate::debug_robot!(
@@ -1178,7 +1221,12 @@ mod tests {
 
     #[test]
     fn test_program_errors() {
-        let mut robot = Robot::new(0, String::new(), Point { x: 0.5, y: 0.5 }, Point { x: 0.5, y: 0.5 });
+        let mut robot = Robot::new(
+            0,
+            String::new(),
+            Point { x: 0.5, y: 0.5 },
+            Point { x: 0.5, y: 0.5 },
+        );
         let arena = Arena::default();
         let mut command_queue = VecDeque::new();
 
@@ -1214,7 +1262,12 @@ mod tests {
 
     #[test]
     fn test_register_interaction() {
-        let mut robot = Robot::new(0, String::new(), Point { x: 0.5, y: 0.5 }, Point { x: 0.5, y: 0.5 });
+        let mut robot = Robot::new(
+            0,
+            String::new(),
+            Point { x: 0.5, y: 0.5 },
+            Point { x: 0.5, y: 0.5 },
+        );
         let arena = Arena::default();
 
         let program = parse_program(
@@ -1238,7 +1291,10 @@ mod tests {
     #[test]
     fn test_fire_weapon() {
         let arena = Arena::new();
-        let center = Point { x: arena.width / 2.0, y: arena.height / 2.0 };
+        let center = Point {
+            x: arena.width / 2.0,
+            y: arena.height / 2.0,
+        };
         let mut robot = Robot::new(0, "TestRobot".to_string(), Point { x: 0.5, y: 0.5 }, center);
         let mut command_queue = VecDeque::new();
 

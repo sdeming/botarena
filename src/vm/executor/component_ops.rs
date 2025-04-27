@@ -155,11 +155,13 @@ impl InstructionProcessor for ComponentOperations {
                     // So we convert grid units to coordinate units per cycle:
                     // grid_units * UNIT_SIZE / CYCLES_PER_TURN = coordinate_units_per_cycle
                     let units_per_cycle = val * config::DRIVE_VELOCITY_FACTOR;
-                    
+
                     // Clamp to a maximum (let's say max is ±5 grid units per turn, or ±0.25 coordinate units)
-                    let max_units_per_cycle = config::MAX_DRIVE_UNITS_PER_TURN * config::DRIVE_VELOCITY_FACTOR;
-                    let clamped_velocity = units_per_cycle.clamp(-max_units_per_cycle, max_units_per_cycle);
-                    
+                    let max_units_per_cycle =
+                        config::MAX_DRIVE_UNITS_PER_TURN * config::DRIVE_VELOCITY_FACTOR;
+                    let clamped_velocity =
+                        units_per_cycle.clamp(-max_units_per_cycle, max_units_per_cycle);
+
                     if clamped_velocity != units_per_cycle {
                         crate::debug_instructions!(
                             robot.id,
@@ -209,6 +211,7 @@ impl InstructionProcessor for ComponentOperations {
 mod tests {
     use super::*;
     use crate::arena::Arena;
+    use crate::config;
     use crate::robot::Robot;
     use crate::types::{ArenaCommand, Point};
     use crate::vm::error::VMFault;
@@ -216,11 +219,13 @@ mod tests {
     use crate::vm::operand::Operand;
     use crate::vm::registers::Register;
     use std::collections::VecDeque;
-    use crate::config;
 
     fn create_test_robot() -> Robot {
         let arena = Arena::new();
-        let center = Point { x: arena.width / 2.0, y: arena.height / 2.0 };
+        let center = Point {
+            x: arena.width / 2.0,
+            y: arena.height / 2.0,
+        };
         Robot::new(1, "TestRobot".to_string(), Point { x: 0.5, y: 0.5 }, center)
     }
 
@@ -250,20 +255,44 @@ mod tests {
     fn test_select_component() {
         let (mut robot, arena, mut command_queue) = setup();
         let processor = ComponentOperations::new();
-        let result = processor.process(&mut robot, &[], &arena, &Instruction::Select(Operand::Value(1.0)), &mut command_queue);
+        let result = processor.process(
+            &mut robot,
+            &[],
+            &arena,
+            &Instruction::Select(Operand::Value(1.0)),
+            &mut command_queue,
+        );
         assert!(result.is_ok());
-        assert_eq!(robot.vm_state.registers.get(Register::Component).unwrap(), 1.0);
+        assert_eq!(
+            robot.vm_state.registers.get(Register::Component).unwrap(),
+            1.0
+        );
 
-        let result_deselect = processor.process(&mut robot, &[], &arena, &Instruction::Deselect, &mut command_queue);
+        let result_deselect = processor.process(
+            &mut robot,
+            &[],
+            &arena,
+            &Instruction::Deselect,
+            &mut command_queue,
+        );
         assert!(result_deselect.is_ok());
-        assert_eq!(robot.vm_state.registers.get(Register::Component).unwrap(), 0.0);
+        assert_eq!(
+            robot.vm_state.registers.get(Register::Component).unwrap(),
+            0.0
+        );
     }
 
     #[test]
     fn test_select_invalid_component() {
         let (mut robot, arena, mut command_queue) = setup();
         let processor = ComponentOperations::new();
-        let result = processor.process(&mut robot, &[], &arena, &Instruction::Select(Operand::Value(99.0)), &mut command_queue);
+        let result = processor.process(
+            &mut robot,
+            &[],
+            &arena,
+            &Instruction::Select(Operand::Value(99.0)),
+            &mut command_queue,
+        );
         assert!(result.is_err());
         assert_eq!(result.unwrap_err(), VMFault::InvalidComponentForOp);
     }
@@ -292,13 +321,22 @@ mod tests {
         let rotate = Instruction::Rotate(Operand::Value(45.0));
         let result_none = processor.process(&mut robot, &[], &arena, &rotate, &mut command_queue);
         assert!(result_none.is_err());
-        assert_eq!(result_none.unwrap_err(), VMFault::NoComponentSelected, "Rotate with component 0 selected should yield NoComponentSelected.");
+        assert_eq!(
+            result_none.unwrap_err(),
+            VMFault::NoComponentSelected,
+            "Rotate with component 0 selected should yield NoComponentSelected."
+        );
 
         // Case 2: Select an invalid component ID (e.g., 99)
         robot.vm_state.set_selected_component(99).unwrap();
-        let result_invalid = processor.process(&mut robot, &[], &arena, &rotate, &mut command_queue);
+        let result_invalid =
+            processor.process(&mut robot, &[], &arena, &rotate, &mut command_queue);
         assert!(result_invalid.is_err());
-        assert_eq!(result_invalid.unwrap_err(), VMFault::InvalidComponentForOp, "Rotate with invalid component ID 99 should yield InvalidComponentForOp.");
+        assert_eq!(
+            result_invalid.unwrap_err(),
+            VMFault::InvalidComponentForOp,
+            "Rotate with invalid component ID 99 should yield InvalidComponentForOp."
+        );
     }
 
     #[test]
@@ -324,7 +362,13 @@ mod tests {
         let excessive_velocity = config::MAX_DRIVE_UNITS_PER_TURN + 1.0;
         let expected_max = config::MAX_DRIVE_UNITS_PER_TURN * config::DRIVE_VELOCITY_FACTOR; // This is now 5 * UNIT_SIZE / CYCLES_PER_TURN
         let drive_excessive = Instruction::Drive(Operand::Value(excessive_velocity));
-        let result = processor.process(&mut robot, &[], &arena, &drive_excessive, &mut command_queue);
+        let result = processor.process(
+            &mut robot,
+            &[],
+            &arena,
+            &drive_excessive,
+            &mut command_queue,
+        );
 
         assert!(result.is_ok());
         // Verify that the value was clamped to max
@@ -332,9 +376,17 @@ mod tests {
 
         // Test with a value lower than the minimum
         let excessive_reverse_velocity = -1.0 * (config::MAX_DRIVE_UNITS_PER_TURN + 1.0);
-        let expected_min = -1.0 * (config::MAX_DRIVE_UNITS_PER_TURN * config::DRIVE_VELOCITY_FACTOR);
-        let reverse_drive_excessive = Instruction::Drive(Operand::Value(excessive_reverse_velocity));
-        let result = processor.process(&mut robot, &[], &arena, &reverse_drive_excessive, &mut command_queue);
+        let expected_min =
+            -1.0 * (config::MAX_DRIVE_UNITS_PER_TURN * config::DRIVE_VELOCITY_FACTOR);
+        let reverse_drive_excessive =
+            Instruction::Drive(Operand::Value(excessive_reverse_velocity));
+        let result = processor.process(
+            &mut robot,
+            &[],
+            &arena,
+            &reverse_drive_excessive,
+            &mut command_queue,
+        );
 
         assert!(result.is_ok());
         // Verify that the value was clamped to max
@@ -428,7 +480,13 @@ mod tests {
         let excessive_velocity = config::MAX_DRIVE_UNITS_PER_TURN + 1.0;
         let expected_max = config::MAX_DRIVE_UNITS_PER_TURN * config::DRIVE_VELOCITY_FACTOR; // This is now 5 * UNIT_SIZE / CYCLES_PER_TURN
         let drive_excessive = Instruction::Drive(Operand::Value(excessive_velocity));
-        let result = processor.process(&mut robot, &[], &arena, &drive_excessive, &mut command_queue);
+        let result = processor.process(
+            &mut robot,
+            &[],
+            &arena,
+            &drive_excessive,
+            &mut command_queue,
+        );
 
         assert!(result.is_ok());
         // Verify that the value was clamped to max
@@ -436,9 +494,17 @@ mod tests {
 
         // Test with a value lower than the minimum
         let excessive_reverse_velocity = -1.0 * (config::MAX_DRIVE_UNITS_PER_TURN + 1.0);
-        let expected_min = -1.0 * (config::MAX_DRIVE_UNITS_PER_TURN * config::DRIVE_VELOCITY_FACTOR);
-        let reverse_drive_excessive = Instruction::Drive(Operand::Value(excessive_reverse_velocity));
-        let result = processor.process(&mut robot, &[], &arena, &reverse_drive_excessive, &mut command_queue);
+        let expected_min =
+            -1.0 * (config::MAX_DRIVE_UNITS_PER_TURN * config::DRIVE_VELOCITY_FACTOR);
+        let reverse_drive_excessive =
+            Instruction::Drive(Operand::Value(excessive_reverse_velocity));
+        let result = processor.process(
+            &mut robot,
+            &[],
+            &arena,
+            &reverse_drive_excessive,
+            &mut command_queue,
+        );
 
         assert!(result.is_ok());
         // Verify that the value was clamped to max

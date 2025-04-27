@@ -108,18 +108,26 @@ impl InstructionExecutor {
 mod tests {
     use crate::arena::Arena;
     use crate::robot::Robot;
-    use crate::types::{Point, ArenaCommand};
+    use crate::types::{ArenaCommand, Point};
+    use crate::vm::error::VMFault;
+    use crate::vm::executor::InstructionExecutor;
     use crate::vm::instruction::Instruction;
     use crate::vm::operand::Operand;
-    use crate::vm::error::VMFault;
     use crate::vm::registers::Register;
     use std::collections::VecDeque;
-    use crate::vm::executor::InstructionExecutor;
 
     fn setup_test_vm() -> (Robot, Arena, VecDeque<ArenaCommand>) {
         let arena = Arena::new();
-        let center = Point { x: arena.width / 2.0, y: arena.height / 2.0 };
-        let robot = Robot::new(0, "TestRobot0".to_string(), Point { x: 0.5, y: 0.5 }, center);
+        let center = Point {
+            x: arena.width / 2.0,
+            y: arena.height / 2.0,
+        };
+        let robot = Robot::new(
+            0,
+            "TestRobot0".to_string(),
+            Point { x: 0.5, y: 0.5 },
+            center,
+        );
         let command_queue = VecDeque::new();
         (robot, arena, command_queue)
     }
@@ -138,8 +146,16 @@ mod tests {
     #[test]
     fn test_stack_operations_delegation() {
         let arena = Arena::new();
-        let center = Point { x: arena.width / 2.0, y: arena.height / 2.0 };
-        let mut robot = Robot::new(0, "TestRobot0".to_string(), Point { x: 0.5, y: 0.5 }, center);
+        let center = Point {
+            x: arena.width / 2.0,
+            y: arena.height / 2.0,
+        };
+        let mut robot = Robot::new(
+            0,
+            "TestRobot0".to_string(),
+            Point { x: 0.5, y: 0.5 },
+            center,
+        );
         let mut command_queue = VecDeque::new();
 
         let result_push = execute_instruction(
@@ -163,8 +179,16 @@ mod tests {
     #[test]
     fn test_register_operations_delegation() {
         let arena = Arena::new();
-        let center = Point { x: arena.width / 2.0, y: arena.height / 2.0 };
-        let mut robot = Robot::new(0, "TestRobot0".to_string(), Point { x: 0.5, y: 0.5 }, center);
+        let center = Point {
+            x: arena.width / 2.0,
+            y: arena.height / 2.0,
+        };
+        let mut robot = Robot::new(
+            0,
+            "TestRobot0".to_string(),
+            Point { x: 0.5, y: 0.5 },
+            center,
+        );
         let mut command_queue = VecDeque::new();
 
         let result_mov = execute_instruction(
@@ -191,21 +215,56 @@ mod tests {
         let (mut robot, arena, mut command_queue) = setup_test_vm();
         robot.vm_state.registers.set(Register::D1, 10.0).unwrap();
         robot.vm_state.registers.set(Register::D2, 5.0).unwrap();
-        let instruction = Instruction::AddOp(Operand::Register(Register::D1), Operand::Register(Register::D2));
+        let instruction = Instruction::AddOp(
+            Operand::Register(Register::D1),
+            Operand::Register(Register::D2),
+        );
         execute_instruction(&mut robot, &arena, &instruction, &mut command_queue).unwrap();
-        assert_eq!(robot.vm_state.registers.get(Register::Result).unwrap(), 15.0);
+        assert_eq!(
+            robot.vm_state.registers.get(Register::Result).unwrap(),
+            15.0
+        );
     }
 
     #[test]
     fn test_bitwise_execution() {
         let (mut robot, arena, mut command_queue) = setup_test_vm();
-        robot.vm_state.registers.set(Register::D1, 0b1010 as f64).unwrap();
-        robot.vm_state.registers.set(Register::D2, 0b1100 as f64).unwrap();
-        execute_instruction(&mut robot, &arena, &Instruction::Push(Operand::Register(Register::D1)), &mut command_queue).unwrap();
-        execute_instruction(&mut robot, &arena, &Instruction::Push(Operand::Register(Register::D2)), &mut command_queue).unwrap();
+        robot
+            .vm_state
+            .registers
+            .set(Register::D1, 0b1010 as f64)
+            .unwrap();
+        robot
+            .vm_state
+            .registers
+            .set(Register::D2, 0b1100 as f64)
+            .unwrap();
+        execute_instruction(
+            &mut robot,
+            &arena,
+            &Instruction::Push(Operand::Register(Register::D1)),
+            &mut command_queue,
+        )
+        .unwrap();
+        execute_instruction(
+            &mut robot,
+            &arena,
+            &Instruction::Push(Operand::Register(Register::D2)),
+            &mut command_queue,
+        )
+        .unwrap();
         execute_instruction(&mut robot, &arena, &Instruction::And, &mut command_queue).unwrap();
-        execute_instruction(&mut robot, &arena, &Instruction::Pop(Register::D0), &mut command_queue).unwrap();
-        assert_eq!(robot.vm_state.registers.get(Register::D0).unwrap() as i64, 0b1000);
+        execute_instruction(
+            &mut robot,
+            &arena,
+            &Instruction::Pop(Register::D0),
+            &mut command_queue,
+        )
+        .unwrap();
+        assert_eq!(
+            robot.vm_state.registers.get(Register::D0).unwrap() as i64,
+            0b1000
+        );
     }
 
     #[test]

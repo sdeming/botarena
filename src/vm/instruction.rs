@@ -94,9 +94,8 @@ impl Instruction {
     /// Returns the number of simulation cycles this instruction takes to execute.
     pub fn cycle_cost(&self, vm_state: &VMState) -> u32 {
         use crate::vm::executor::Instruction::{
-            Abs, Acos, Add, And, Asin, Atan, Atan2, Cos, Deselect, Div, Divmod, Dup, Log,
-            Mod, Mul, Nop, Not, Or, PopDiscard, Pow, Ret, Scan, Shl, Shr, Sin, Sqrt, Sub, Swap,
-            Tan, Xor,
+            Abs, Acos, Add, And, Asin, Atan, Atan2, Cos, Deselect, Div, Divmod, Dup, Log, Mod, Mul,
+            Nop, Not, Or, PopDiscard, Pow, Ret, Scan, Shl, Shr, Sin, Sqrt, Sub, Swap, Tan, Xor,
         };
         use Instruction::*;
         match self {
@@ -153,8 +152,10 @@ impl Instruction {
             // 1 Cycles
             Sleep(op) => {
                 // Try to get the value from the operand, default to 1 if invalid
-                op.get_value(vm_state).map(|v| v.max(1.0) as u32).unwrap_or(1)
-            },
+                op.get_value(vm_state)
+                    .map(|v| v.max(1.0) as u32)
+                    .unwrap_or(1)
+            }
         }
     }
 }
