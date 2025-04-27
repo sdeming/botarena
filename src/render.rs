@@ -908,10 +908,27 @@ void main() {
         alpha: f64,
     ) {
         for projectile in &arena.projectiles {
-            let interp_pos =
+            // Interpolate position for smooth rendering between game ticks
+            let current_interp_pos =
                 utils::lerp_point(projectile.prev_position, projectile.position, alpha);
-            let screen_pos = point_to_vec2(interp_pos, arena_screen_width, arena_screen_height);
-            draw_circle(screen_pos.x, screen_pos.y, 2.0, WHITE);
+            let current_screen_pos = point_to_vec2(current_interp_pos, arena_screen_width, arena_screen_height);
+
+            // Get the screen position from the *start* of the current tick
+            let prev_tick_screen_pos = point_to_vec2(projectile.prev_position, arena_screen_width, arena_screen_height);
+
+            // Draw the vapor trail line (fading gray)
+            let trail_color = faded_color(LIGHTGRAY, 0.5); // Use helper for faded color
+            draw_line(
+                prev_tick_screen_pos.x,
+                prev_tick_screen_pos.y,
+                current_screen_pos.x,
+                current_screen_pos.y,
+                1.5, // Line thickness
+                trail_color,
+            );
+
+            // Draw the projectile head (slightly brighter)
+            draw_circle(current_screen_pos.x, current_screen_pos.y, 2.0, WHITE);
         }
     }
 

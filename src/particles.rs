@@ -125,6 +125,53 @@ impl ParticleSystem {
         }
     }
 
+    /// Spawns particles along the path a projectile traveled in a tick.
+    pub fn spawn_projectile_trail(
+        &mut self,
+        start_pos: Vec2,
+        end_pos: Vec2,
+        count: usize,
+        lifetime: f32,
+    ) {
+        let direction = end_pos - start_pos;
+        let distance = direction.length();
+
+        // Don't spawn if it didn't move much
+        let min_distance_threshold = config::UNIT_SIZE / 10.0;
+        if distance < min_distance_threshold as f32 {
+            return;
+        }
+
+        for i in 1..=count {
+            let t = i as f32 / (count + 1) as f32; // Distribute along the path (exclude exact start/end)
+            let position = start_pos.lerp(end_pos, t);
+
+            // Give particles a slight random drift, perpendicular to the trail direction
+            let perpendicular_dir = Vec2::new(-direction.y, direction.x).normalize_or_zero();
+            let drift_speed = self.rng.r#gen_range(0.0..=(config::UNIT_SIZE * 0.5)) as f32; // Small drift
+            let drift_velocity = perpendicular_dir * drift_speed * (self.rng.r#gen::<f32>() - 0.5) * 2.0; // Random direction
+
+            // Base velocity can be zero or slightly backward to simulate dissipating smoke
+            let base_velocity = -direction.normalize_or_zero() * self.rng.r#gen_range(0.0..=(config::UNIT_SIZE*0.1)) as f32;
+
+            let final_velocity = base_velocity + drift_velocity;
+
+            // Trail color (e.g., light gray, fading)
+            let mut color = LIGHTGRAY;
+            color.a = 0.6; // Start semi-transparent
+
+            // Slightly randomized lifetime
+            let particle_lifetime = lifetime * (0.8 + self.rng.r#gen::<f32>() * 0.4);
+
+            self.particles.push(Particle::new(
+                position,
+                final_velocity,
+                color,
+                particle_lifetime,
+            ));
+        }
+    }
+
     // Update all active particles based on fixed cycle duration
     pub fn update(&mut self, dt: f32) {
         self.particles.retain_mut(|p| {

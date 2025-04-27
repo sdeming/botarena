@@ -281,38 +281,42 @@ impl Game {
             }
         }
 
-        // Update Phase 2: Command Execution
-        // Spawn projectiles and effects fired this cycle
-        for command in command_queue.drain(..) {
-            match command {
-                ArenaCommand::SpawnProjectile(projectile) => {
-                    self.arena.spawn_projectile(projectile);
-                }
-                ArenaCommand::SpawnMuzzleFlash {
-                    position,
-                    direction,
-                } => {
-                    // Calculate muzzle flash position at tip of turret
-                    let flash_offset_distance = config::UNIT_SIZE * 0.8;
-                    let angle_rad = direction.to_radians();
-                    let flash_offset_x = angle_rad.cos() * flash_offset_distance;
-                    let flash_offset_y = angle_rad.sin() * flash_offset_distance;
-                    let flash_pos_world = Vec2 {
-                        x: (position.x + flash_offset_x) as f32,
-                        y: (position.y + flash_offset_y) as f32,
-                    };
-                    self.particle_system
-                        .spawn_muzzle_flash(flash_pos_world, direction);
-                }
-            }
+        // Update Phase 2: Physics and Interactions
+        // Collect projectile movements for trail spawning *before* moving them
+        let mut projectile_movements: Vec<(Vec2, Vec2)> = Vec::with_capacity(self.arena.projectiles.len());
+        for projectile in &self.arena.projectiles {
+            let start_pos = Vec2::new(projectile.prev_position.x as f32, projectile.prev_position.y as f32);
+            // Estimate end position based on current velocity and cycle duration
+            // Note: This might differ slightly from the final position after collision checks
+            let direction_rad = projectile.direction.to_radians(); // Convert degrees to radians
+            let vel_x = projectile.speed * direction_rad.cos();
+            let vel_y = projectile.speed * direction_rad.sin();
+            let estimated_end_pos = Vec2::new(
+                (projectile.position.x + vel_x * self.cycle_duration as f64) as f32,
+                (projectile.position.y + vel_y * self.cycle_duration as f64) as f32,
+            );
+            projectile_movements.push((start_pos, estimated_end_pos));
         }
 
-        // Update Phase 3: Arena Updates
+        // Update Phase 3: Arena Updates (Handles Projectile Movement, Collision, Removal)
         self.arena
             .update_projectiles(&mut self.robots, &mut self.particle_system);
+
+        // Update Phase 3.5: Spawn Trails based on pre-calculated movements
+        // Note: We iterate using the collected movements, not the potentially modified projectile list
+        for (start_pos, end_pos) in projectile_movements {
+            self.particle_system.spawn_projectile_trail(
+                start_pos,
+                end_pos,
+                2,    // Number of particles per tick per projectile
+                0.25, // Lifetime of trail particles (in seconds)
+            );
+        }
+
         self.particle_system.update(self.cycle_duration);
 
-        // --- New: Remove destroyed robots, add obstacles, check win/draw ---
+        // --- Remove destroyed robots, add obstacles, check win/draw ---
+        // This block correctly calculates and uses its own `destroyed_robots`
         let destroyed_robots: Vec<Robot> = self
             .robots
             .iter()
@@ -338,7 +342,6 @@ impl Game {
             self.game_over = true;
             self.winner = None;
         }
-        // --- End new logic ---
 
         // Cycle/Turn Increment
         self.current_cycle += 1;
@@ -355,6 +358,32 @@ impl Game {
             // Update cycle number in VM state for all robots
             for robot in self.robots.iter_mut() {
                 robot.vm_state.cycle = self.current_cycle;
+            }
+        }
+
+        // Update Phase 4: Command Execution
+        // Spawn projectiles and effects fired this cycle
+        for command in command_queue.drain(..) {
+            match command {
+                ArenaCommand::SpawnProjectile(projectile) => {
+                    self.arena.spawn_projectile(projectile);
+                }
+                ArenaCommand::SpawnMuzzleFlash {
+                    position,
+                    direction,
+                } => {
+                    // Calculate muzzle flash position at tip of turret
+                    let flash_offset_distance = config::UNIT_SIZE * 0.8;
+                    let angle_rad = direction.to_radians();
+                    let flash_offset_x = angle_rad.cos() * flash_offset_distance;
+                    let flash_offset_y = angle_rad.sin() * flash_offset_distance;
+                    let flash_pos_world = Vec2 {
+                        x: (position.x + flash_offset_x) as f32,
+                        y: (position.y + flash_offset_y) as f32,
+                    };
+                    self.particle_system
+                        .spawn_muzzle_flash(flash_pos_world, direction);
+                }
             }
         }
     }
