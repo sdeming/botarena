@@ -11,11 +11,6 @@ pub struct Stack {
 }
 
 impl Stack {
-    /// Creates a new stack with a fixed maximum size
-    pub fn new() -> Self {
-        Self::with_size(32) // Default size
-    }
-
     /// Creates a new stack with the specified maximum size
     pub fn with_size(max_size: usize) -> Self {
         Stack {
@@ -61,11 +56,6 @@ impl Stack {
         Ok(())
     }
 
-    /// Checks if the stack is empty
-    pub fn is_empty(&self) -> bool {
-        self.data.is_empty()
-    }
-
     /// Returns a slice representing the current stack data (top is last element)
     pub fn view(&self) -> &[f64] {
         self.data.as_slices().0 // VecDeque can be non-contiguous, just get the main slice for debug
@@ -78,7 +68,7 @@ mod tests {
 
     #[test]
     fn test_stack_push_pop() {
-        let mut stack = Stack::new();
+        let mut stack = Stack::with_size(32);
         assert!(stack.push(1.0).is_ok());
         assert!(stack.push(2.0).is_ok());
         assert_eq!(stack.pop().unwrap(), 2.0);

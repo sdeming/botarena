@@ -56,7 +56,6 @@ fn get_health_gradient_color(ratio: f32) -> Color {
 
 // Handles rendering the simulation state using macroquad
 pub struct Renderer {
-    material: Option<Material>,
     scene_rt: Option<RenderTarget>,
     bright_rt: Option<RenderTarget>,
     blur_rt1: Option<RenderTarget>,
@@ -64,16 +63,15 @@ pub struct Renderer {
     brightness_material: Option<Material>,
     h_blur_material: Option<Material>,
     v_blur_material: Option<Material>,
-    additive_material: Option<Material>, // Material for final additive blend
-    scanner_material: Option<Material>,  // Material for scanner visualization
-    title_font: Option<Font>,            // Font for UI title
-    ui_font: Option<Font>,               // Font for general UI elements
+    additive_material: Option<Material>,
+    scanner_material: Option<Material>,
+    title_font: Option<Font>,
+    ui_font: Option<Font>,
 }
 
 impl Renderer {
     pub fn new() -> Self {
         Renderer {
-            material: None,
             scene_rt: None,
             bright_rt: None,
             blur_rt1: None,
@@ -83,41 +81,9 @@ impl Renderer {
             v_blur_material: None,
             additive_material: None,
             scanner_material: None,
-            title_font: None, // Initialize title_font as None
-            ui_font: None,    // Initialize ui_font as None
+            title_font: None,
+            ui_font: None,
         }
-    }
-
-    pub fn init_material(&mut self) {
-        let material = load_material(
-            ShaderSource::Glsl {
-                vertex: "#version 100
-attribute vec3 position;
-attribute vec2 texcoord; // We don't use texcoord here, but need it for macroquad's default mesh
-varying vec4 frag_color; // Pass color through
-uniform mat4 Model;
-uniform mat4 Projection;
-void main() {
-    gl_Position = Projection * Model * vec4(position, 1.0);
-    // Assign a default color or pass vertex color if available
-    // Since we're tinting everything drawn with this shader,
-    // the actual input color doesn't matter as much,
-    // but let's just use white.
-    frag_color = vec4(1.0, 1.0, 1.0, 1.0);
-}",
-                fragment: "#version 100
-precision mediump float;
-varying vec4 frag_color; // Receive color from vertex shader
-void main() {
-    // Apply red tint to the incoming fragment color
-    gl_FragColor = frag_color * vec4(1.0, 0.3, 0.3, 1.0); // Stronger red tint
-}",
-            },
-            // Note: No MaterialParams needed if not using textures/uniforms beyond default Model/Projection
-            MaterialParams::default(), // Use default params
-        )
-        .unwrap();
-        self.material = Some(material);
     }
 
     pub fn init_scanner_material(&mut self) {
@@ -270,7 +236,6 @@ void main() {
                 color_blend: None,
                 ..Default::default()
             },
-            ..Default::default()
         };
 
         let h_blur_params = MaterialParams {
@@ -280,7 +245,6 @@ void main() {
                 color_blend: None,
                 ..Default::default()
             },
-            ..Default::default()
         };
         let v_blur_params = MaterialParams {
             textures: vec!["InputTexture".to_string()],
@@ -289,7 +253,6 @@ void main() {
                 color_blend: None,
                 ..Default::default()
             },
-            ..Default::default()
         };
 
         self.brightness_material = Some(
@@ -308,7 +271,7 @@ void main() {
             load_material(
                 ShaderSource::Glsl {
                     vertex: post_process_vertex_shader,
-                    fragment: &blur_fragment_shader,
+                    fragment: blur_fragment_shader,
                 },
                 h_blur_params,
             )
@@ -320,7 +283,7 @@ void main() {
             load_material(
                 ShaderSource::Glsl {
                     vertex: post_process_vertex_shader,
-                    fragment: &blur_fragment_shader,
+                    fragment: blur_fragment_shader,
                 },
                 v_blur_params,
             )
@@ -356,13 +319,13 @@ void main() {
                     textures: vec!["InputTexture".to_string()], // Still needs texture input
                     uniforms: vec![UniformDesc::new("GlowIntensity", UniformType::Float1)], // Add uniform desc
                     pipeline_params: additive_pipeline_params,
-                    ..Default::default()
                 },
             )
             .unwrap(),
         );
     }
 
+    #[allow(clippy::too_many_arguments)]
     pub fn draw_frame(
         &mut self,
         arena: &Arena,
@@ -859,6 +822,7 @@ void main() {
         );
     }
 
+    #[allow(clippy::too_many_arguments)]
     fn draw_triangle_at_angle(
         center_pos: Vec2,
         radius: f32,

@@ -16,7 +16,6 @@ pub struct ParseError {
 #[derive(Debug, Clone)]
 pub struct ParsedProgram {
     pub instructions: Vec<Instruction>,
-    pub labels: HashMap<String, usize>,
 }
 
 /// Parse and evaluate a constant expression
@@ -52,8 +51,8 @@ fn parse_constant_expression(
     let tokens: Vec<&str> = expr.split_whitespace().collect();
 
     // Define a recursive parsing function
-    fn parse_expr<'a>(
-        tokens: &'a [&str],
+    fn parse_expr(
+        tokens: &[&str],
         pos: &mut usize,
         constants: &HashMap<String, f64>,
         line: usize,
@@ -77,8 +76,8 @@ fn parse_constant_expression(
         Ok(left)
     }
 
-    fn parse_term<'a>(
-        tokens: &'a [&str],
+    fn parse_term(
+        tokens: &[&str],
         pos: &mut usize,
         constants: &HashMap<String, f64>,
         line: usize,
@@ -120,8 +119,8 @@ fn parse_constant_expression(
         Ok(left)
     }
 
-    fn parse_factor<'a>(
-        tokens: &'a [&str],
+    fn parse_factor(
+        tokens: &[&str],
         pos: &mut usize,
         constants: &HashMap<String, f64>,
         line: usize,
@@ -237,7 +236,7 @@ pub fn parse_assembly(
             if parts.len() >= 3 {
                 let name = parts[1].to_string();
                 // Check for conflict with predefined constants
-                if predefined_constants.map_or(false, |pre| pre.contains_key(&name)) {
+                if predefined_constants.is_some_and(|pre| pre.contains_key(&name)) {
                     return Err(ParseError {
                         line: line_num,
                         message: format!("Attempted to redefine built-in constant: {}", name),
@@ -801,8 +800,6 @@ pub fn parse_assembly(
 
     Ok(ParsedProgram {
         instructions,
-        labels,
-        // Constants are no longer stored here
     })
 }
 
@@ -923,7 +920,6 @@ mod tests {
         );
         let program = result.unwrap();
         assert_eq!(program.instructions.len(), 4);
-        assert_eq!(*program.labels.get("start").unwrap(), 0);
         assert!(matches!(program.instructions[3], Instruction::Jmp(0)));
     }
 
@@ -1169,7 +1165,6 @@ mod tests {
         );
         let program = result.unwrap();
         assert_eq!(program.instructions.len(), 3);
-        assert_eq!(*program.labels.get("target").unwrap(), 1); // target label points to 'add'
         assert!(matches!(program.instructions[0], Instruction::Jmp(1)));
         assert!(matches!(program.instructions[1], Instruction::Add));
         assert!(matches!(program.instructions[2], Instruction::Jz(1)));

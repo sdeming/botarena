@@ -55,7 +55,7 @@ impl InstructionProcessor for ComponentOperations {
                     selected_component
                 );
                 match component_id {
-                    0 | 1 | 2 => {
+                    0..=2 => {
                         let res = robot.vm_state.set_selected_component(component_id);
                         crate::debug_instructions!(
                             robot.id,

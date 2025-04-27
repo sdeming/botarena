@@ -53,8 +53,8 @@ struct Args {
 fn window_conf() -> Conf {
     Conf {
         window_title: "Bot Arena".to_owned(),
-        window_width: (ARENA_WIDTH + UI_PANEL_WIDTH) as i32,
-        window_height: WINDOW_HEIGHT as i32,
+        window_width: (ARENA_WIDTH + UI_PANEL_WIDTH),
+        window_height: WINDOW_HEIGHT,
         high_dpi: true,
         ..Default::default()
     }

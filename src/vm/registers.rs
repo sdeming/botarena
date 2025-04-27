@@ -160,7 +160,7 @@ impl Registers {
 
     /// Set the value of a register (enforces write permissions)
     pub fn set(&mut self, reg: Register, value: f64) -> Result<(), RegisterError> {
-        if !reg.is_writable() {
+        if reg.is_readonly() {
             return Err(RegisterError::ReadOnlyRegister);
         }
         self.set_internal(reg, value)

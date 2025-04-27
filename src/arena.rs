@@ -7,7 +7,6 @@ use crate::types::*;
 use ::rand::prelude::*;
 use macroquad::prelude::*;
 use macroquad::prelude::{ORANGE, SKYBLUE, Vec2, YELLOW};
-use std::f64::INFINITY;
 
 // Represents an obstacle in the arena
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -28,7 +27,6 @@ pub struct Arena {
 }
 
 impl Arena {
-    // Creates a new Arena instance
     pub fn new() -> Self {
         let width = ARENA_WIDTH_UNITS as f64 * UNIT_SIZE;
         let height = ARENA_HEIGHT_UNITS as f64 * UNIT_SIZE;
@@ -103,18 +101,7 @@ impl Arena {
             y: (grid_y as f64 + 0.5) * self.unit_size,
         }
     }
-
-    // Converts world coordinates (f64) to grid coordinates (u32)
-    pub fn world_to_grid(&self, world_x: f64, world_y: f64) -> (u32, u32) {
-        let grid_x = (world_x / self.unit_size).floor() as u32;
-        let grid_y = (world_y / self.unit_size).floor() as u32;
-        // Clamp to grid boundaries
-        (
-            grid_x.min(self.grid_width - 1),
-            grid_y.min(self.grid_height - 1),
-        )
-    }
-
+    
     // Adds a projectile to the arena's list
     pub fn spawn_projectile(&mut self, projectile: Projectile) {
         log::debug!(
@@ -279,11 +266,11 @@ impl Arena {
         let sin_a = angle_rad.sin();
         let robot_radius = self.unit_size / 2.0;
 
-        let _min_dist = INFINITY;
+        let _min_dist = f64::INFINITY;
 
         // --- Check Walls ---
         // Calculate distance for the CENTER point hitting the wall first.
-        let mut min_dist_wall_center = INFINITY;
+        let mut min_dist_wall_center = f64::INFINITY;
         if cos_a.abs() > 1e-9 {
             let dist_x0 = -start_point.x / cos_a;
             if dist_x0 > 1e-9 {
@@ -326,12 +313,12 @@ impl Arena {
         let inv_dx = if cos_a.abs() > 1e-9 {
             1.0 / cos_a
         } else {
-            INFINITY
+            f64::INFINITY
         };
         let inv_dy = if sin_a.abs() > 1e-9 {
             1.0 / sin_a
         } else {
-            INFINITY
+            f64::INFINITY
         };
 
         for obstacle in &self.obstacles {
