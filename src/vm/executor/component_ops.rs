@@ -8,7 +8,6 @@ use std::collections::VecDeque;
 
 use super::processor::InstructionProcessor;
 use crate::vm::instruction::Instruction;
-use crate::vm::operand::Operand;
 
 /// Processor for robot component operations
 pub struct ComponentOperations;
@@ -302,6 +301,7 @@ mod tests {
         assert_eq!(result_invalid.unwrap_err(), VMFault::InvalidComponentForOp, "Rotate with invalid component ID 99 should yield InvalidComponentForOp.");
     }
 
+    #[test]
     fn test_drive_sets_velocity() {
         let mut robot = create_test_robot();
         let mut command_queue = VecDeque::new();
@@ -341,6 +341,7 @@ mod tests {
         assert_eq!(robot.drive.velocity, expected_min);
     }
 
+    #[test]
     fn test_rotate_drive() {
         let mut robot = create_test_robot();
         let mut command_queue = VecDeque::new();
@@ -363,6 +364,7 @@ mod tests {
         assert_eq!(robot.drive.pending_rotation, rotate_angle);
     }
 
+    #[test]
     fn test_rotate_turret() {
         let mut robot = create_test_robot();
         let mut command_queue = VecDeque::new();
@@ -385,6 +387,7 @@ mod tests {
         assert_eq!(robot.turret.pending_rotation, rotate_angle);
     }
 
+    #[test]
     fn test_rotate_no_component() {
         let mut robot = create_test_robot();
         let mut command_queue = VecDeque::new();

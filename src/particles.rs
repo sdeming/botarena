@@ -1,8 +1,8 @@
-use crate::config; // <-- Import config
+use crate::config; 
 use macroquad::prelude::*;
-use ::rand::Rng; // Use ::rand and import Rng directly
-use ::rand::thread_rng; // Use ::rand and import thread_rng directly
-use ::rand::rngs::ThreadRng;  // Use ::rand and import ThreadRng directly
+use ::rand::Rng;
+use ::rand::thread_rng;
+use ::rand::rngs::ThreadRng;
 
 // Represents a single particle
 #[derive(Debug, Clone)]
@@ -13,7 +13,6 @@ pub struct Particle {
     pub color: Color,
     pub lifetime: f32, // Time remaining in seconds
     pub initial_lifetime: f32,
-    rng: ThreadRng, // Use ThreadRng directly
 }
 
 impl Particle {
@@ -25,7 +24,6 @@ impl Particle {
             color,
             lifetime,
             initial_lifetime: lifetime,
-            rng: thread_rng(), // Use thread_rng() directly
         }
     }
 
@@ -140,7 +138,7 @@ impl ParticleSystem {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use macroquad::color::{Color, RED, BLUE};
+    use macroquad::color::{RED, BLUE};
     use macroquad::prelude::Vec2;
 
     #[test]

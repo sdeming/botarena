@@ -35,7 +35,7 @@ pub const DEFAULT_INITIAL_POWER: f64 = 1.0;
 // Robot Physics/Movement Configuration
 pub const MAX_DRIVE_UNITS_PER_TURN: f64 = 5.0;
 pub const DRIVE_VELOCITY_FACTOR: f64 = UNIT_SIZE / CYCLES_PER_TURN as f64;
-pub const MAX_ROTATION_PER_CYCLE: f64 = 180.0 / CYCLES_PER_TURN as f64; // Degrees/cycle (scaled automatically, e.g., 3.6 deg/cycle for 100 cycles/turn)
+pub const MAX_ROTATION_PER_CYCLE: f64 = 90.0 / CYCLES_PER_TURN as f64; // Degrees/cycle (scaled automatically, e.g., 3.6 deg/cycle for 100 cycles/turn)
 
 // VM configuration
 pub const MAX_CALL_STACK_SIZE: usize = 10; // Maximum depth of the call stack for subroutines

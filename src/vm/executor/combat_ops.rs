@@ -7,7 +7,6 @@ use std::collections::VecDeque;
 
 use super::processor::InstructionProcessor;
 use crate::vm::instruction::Instruction;
-use crate::vm::executor::InstructionExecutor;
 
 /// Processor for robot combat operations
 pub struct CombatOperations;
@@ -145,7 +144,6 @@ mod tests {
     use crate::vm::instruction::Instruction;
     use crate::vm::operand::Operand;
     use crate::vm::registers::Register;
-    use crate::vm::error::VMFault;
     use std::collections::VecDeque;
     use crate::types::ArenaCommand;
     use crate::robot::RobotStatus;
@@ -163,31 +161,6 @@ mod tests {
         let arena = Arena::new(); // Create a dummy arena to get center
         let center = Point { x: arena.width / 2.0, y: arena.height / 2.0 };
         Robot::new(id, format!("TestRobot{}", id), pos, center)
-    }
-
-    fn create_test_robots() -> Vec<Robot> {
-        vec![create_test_robot(), {
-            let mut r = Robot::new(2, "TestRobot2".to_string(), Point { x: 0.7, y: 0.5 }, Point { x: 0.7, y: 0.5 });
-            r.status = RobotStatus::Active;
-            r
-        }]
-    }
-
-    fn setup_scan_scenario() -> (Robot, Arena, VecDeque<ArenaCommand>, Vec<Robot>) {
-        // Robot 1 (scanning robot)
-        let robot = Robot::new(1, "TestRobot1".to_string(), Point { x: 0.5, y: 0.5 }, Point { x: 0.5, y: 0.5 });
-        let command_queue = VecDeque::new();
-        let arena = Arena::new();
-        // Other robots to be scanned
-        let robots_in_arena = vec![
-            {
-                let mut r = Robot::new(2, "TestRobot2".to_string(), Point { x: 0.7, y: 0.5 }, Point { x: 0.7, y: 0.5 });
-                r.status = RobotStatus::Active;
-                r
-            },
-            // ... add more robots if needed for complex scenarios
-        ];
-        (robot, arena, command_queue, robots_in_arena)
     }
 
     #[test]
@@ -336,7 +309,6 @@ mod tests {
         let robots = vec![robot.clone(), other_robot];
 
         let mut command_queue = VecDeque::new();
-        let processor = CombatOperations::new();
 
         // Select turret component
         robot.vm_state.set_selected_component(2).unwrap();

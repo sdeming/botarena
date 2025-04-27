@@ -940,20 +940,6 @@ mod tests {
             .unwrap();
     }
 
-    // Helper to create a test robot with a specific position
-    fn create_test_robot_at(pos: Point) -> Robot {
-        // Use a default center for test robots
-        let center = Point { x: 0.5, y: 0.5 };
-        Robot::new(0, "TestRobot".to_string(), pos, center)
-    }
-
-    // Helper to create a test robot at default position
-    fn create_test_robot() -> Robot {
-        // Use a default center for test robots
-        let center = Point { x: 0.5, y: 0.5 };
-        create_test_robot_at(Point { x: 0.5, y: 0.5 })
-    }
-
     #[test]
     fn test_basic_movement() {
         // Create a larger arena with no obstacles for testing
@@ -1251,7 +1237,7 @@ mod tests {
 
     #[test]
     fn test_fire_weapon() {
-        let mut arena = Arena::new();
+        let arena = Arena::new();
         let center = Point { x: arena.width / 2.0, y: arena.height / 2.0 };
         let mut robot = Robot::new(0, "TestRobot".to_string(), Point { x: 0.5, y: 0.5 }, center);
         let mut command_queue = VecDeque::new();

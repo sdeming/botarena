@@ -20,10 +20,6 @@ fn point_to_vec2(p: Point, arena_screen_width: i32, arena_screen_height: i32) ->
     )
 }
 
-fn color_from_rgba(r: u8, g: u8, b: u8, a: u8) -> Color {
-    Color::from_rgba(r, g, b, a)
-}
-
 // Add a helper function at the top of the file
 fn faded_color(mut color: Color, alpha: f32) -> Color {
     color.a *= alpha;

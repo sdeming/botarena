@@ -27,7 +27,6 @@ impl InstructionExecutor {
     pub fn new() -> Self {
         let mut processors: Vec<Box<dyn InstructionProcessor>> = Vec::new();
 
-        // Add all processors here
         processors.push(Box::new(StackOperations::new()));
         processors.push(Box::new(RegisterOperations::new()));
         processors.push(Box::new(ArithmeticOperations::new()));
@@ -50,7 +49,7 @@ impl InstructionExecutor {
         instr: &Instruction,
         command_queue: &mut VecDeque<ArenaCommand>,
     ) -> Result<(), VMFault> {
-        // Check for processor that can handle this instruction
+        // Find a processor that can handle this instruction
         for processor in &self.processors {
             if processor.can_process(instr) {
                 let result = processor.process(robot, all_robots, arena, instr, command_queue);
