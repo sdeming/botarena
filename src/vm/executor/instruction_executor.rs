@@ -25,17 +25,17 @@ pub struct InstructionExecutor {
 impl InstructionExecutor {
     /// Create a new executor with all processors registered
     pub fn new() -> Self {
-        let mut processors: Vec<Box<dyn InstructionProcessor>> = Vec::new();
-
-        processors.push(Box::new(StackOperations::new()));
-        processors.push(Box::new(RegisterOperations::new()));
-        processors.push(Box::new(ArithmeticOperations::new()));
-        processors.push(Box::new(TrigonometricOperations::new()));
-        processors.push(Box::new(BitwiseOperations::new()));
-        processors.push(Box::new(ControlFlowOperations::new()));
-        processors.push(Box::new(ComponentOperations::new()));
-        processors.push(Box::new(CombatOperations::new()));
-        processors.push(Box::new(MiscellaneousOperations::new()));
+        let processors: Vec<Box<dyn InstructionProcessor>> = vec![
+            Box::new(StackOperations::new()),
+            Box::new(RegisterOperations::new()),
+            Box::new(ArithmeticOperations::new()),
+            Box::new(TrigonometricOperations::new()),
+            Box::new(BitwiseOperations::new()),
+            Box::new(ControlFlowOperations::new()),
+            Box::new(ComponentOperations::new()),
+            Box::new(CombatOperations::new()),
+            Box::new(MiscellaneousOperations::new()),
+        ];
 
         InstructionExecutor { processors }
     }

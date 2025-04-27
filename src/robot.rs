@@ -8,16 +8,13 @@ use crate::vm::parser;
 use crate::vm::state::VMState;
 use rand::prelude::*;
 use std::collections::VecDeque;
-use std::f64::INFINITY;
 use std::f64::consts::PI;
-use crate::vm::executor::InstructionExecutor;
 
 // Represents the possible states of a robot
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum RobotStatus {
     Idle, // Just loaded, hasn't run yet
     Active,
-    Stunned(u32), // Stores remaining stun duration in cycles
     Destroyed,
 }
 
@@ -198,7 +195,7 @@ impl Robot {
         let scanner_pos = self.position;
         let scanner_dir_rad = self.turret.direction.to_radians();
         let scan_fov_half_rad = (self.turret.scanner.fov / 2.0).to_radians();
-        let mut closest_target_dist_sq = INFINITY;
+        let mut closest_target_dist_sq = f64::INFINITY;
         let mut target_found = false;
         let mut best_target_angle_deg = 0.0;
         let mut best_target_dist = 0.0;
@@ -272,24 +269,6 @@ impl Robot {
         self.status = RobotStatus::Idle;
     }
 
-    // Main update logic called once per cycle for the robot
-    // Needs Arena reference for collision checks during movement processing
-    pub fn update(&mut self, arena: &Arena) {
-        // Process actions that occur automatically each cycle
-        self.process_cycle_updates(arena);
-
-        // Update VM state registers before executing instructions for this cycle
-        self.update_vm_state_registers(arena);
-
-        // TODO: Implement stun handling
-        // REMOVED VM execution from here - handled by main loop
-        /*
-        if self.status == RobotStatus::Active {
-            let _maybe_projectile = self.execute_vm_cycle();
-        }
-        */
-    }
-
     /// Updates the read-only registers in the VM state before each VM cycle execution
     pub fn update_vm_state_registers(&mut self, arena: &Arena) {
         // Update @rand register
@@ -353,13 +332,11 @@ impl Robot {
         registers
             .set_internal(vm::registers::Register::WeaponCooldown, 0.0)
             .unwrap(); // Placeholder
-        // REMOVED ScanDistance and ScanAngle updates - handled by Scan instruction now
-        // registers.set_internal(vm::registers::Register::ScanDistance, self.turret.scanner.last_scan_distance).unwrap();
-        // registers.set_internal(vm::registers::Register::ScanAngle, self.turret.scanner.last_scan_angle).unwrap();
     }
 
     /// Execute one simulation cycle's worth of VM instructions.
     /// Requires the context of all robots and the arena state.
+    #[allow(dead_code)]
     pub fn execute_vm_cycle(
         &mut self,
         all_robots: &[Robot],
@@ -906,6 +883,7 @@ mod tests {
     // Import ArenaCommand
     use crate::types::Point;
     use crate::vm::executor::Operand;
+    use crate::vm::executor::component_ops::ComponentOperations;
     use crate::vm::executor::processor::InstructionProcessor;
     use crate::vm::instruction::Instruction;
     use crate::vm::parser::{ParsedProgram, parse_assembly};
@@ -1112,7 +1090,7 @@ mod tests {
 
         // Set velocity to 0.5 grid units per turn (using the Drive instruction directly)
         let drive_instruction = Instruction::Drive(Operand::Value(0.5));
-        let processor = vm::executor::ComponentOperations::new();
+        let processor = ComponentOperations::new();
         processor
             .process(
                 &mut robot,
@@ -1367,7 +1345,10 @@ mod tests {
             .expect("MOV instruction execution failed");
 
         // Verify the MOV worked
-        assert_eq!(robot.vm_state.registers.get(Register::D0).unwrap(), test_value);
+        assert_eq!(
+            robot.vm_state.registers.get(Register::D0).unwrap(),
+            test_value
+        );
     }
 
     #[test]
@@ -1378,12 +1359,15 @@ mod tests {
         // We need the executor to process the instruction
         let executor = vm::executor::InstructionExecutor::new();
 
-        // --- Test setting velocity to 1.0 --- 
+        // --- Test setting velocity to 1.0 ---
         let target_grid_velocity = 1.0;
         let drive_instr = Instruction::Drive(Operand::Value(target_grid_velocity));
 
         // Explicitly select the Drive component (ID 1) before executing
-        robot.vm_state.set_selected_component(1).expect("Failed to select drive component");
+        robot
+            .vm_state
+            .set_selected_component(1)
+            .expect("Failed to select drive component");
 
         // Execute the Drive(1.0) instruction
         executor
@@ -1402,11 +1386,14 @@ mod tests {
             robot.drive.velocity
         );
 
-        // --- Test setting velocity to 0.0 --- 
+        // --- Test setting velocity to 0.0 ---
         let stop_instr = Instruction::Drive(Operand::Value(0.0));
 
         // Ensure Drive component is still selected (or re-select if necessary)
-        robot.vm_state.set_selected_component(1).expect("Failed to select drive component"); 
+        robot
+            .vm_state
+            .set_selected_component(1)
+            .expect("Failed to select drive component");
 
         // Execute the Drive(0.0) instruction
         executor
@@ -1422,16 +1409,18 @@ mod tests {
 
     // Added back the missing helper function
     fn setup_test_robot() -> (Robot, Arena) {
-        let mut robot = Robot::new(1, "Test".to_string(), Point{ x: 0.5, y: 0.5}, Point{ x: 0.5, y: 0.5});
+        let mut robot = Robot::new(
+            1,
+            "Test".to_string(),
+            Point { x: 0.5, y: 0.5 },
+            Point { x: 0.5, y: 0.5 },
+        );
         let arena = Arena::new();
         // Add a simple program if needed, e.g., MOV D0, 10
         // Note: load_program expects ParsedProgram, not Vec<Instruction>
         // Creating a dummy ParsedProgram for now
         let dummy_program = crate::vm::parser::ParsedProgram {
-            instructions: vec![
-                Instruction::Mov(Register::D0, Operand::Value(10.0))
-            ],
-            labels: std::collections::HashMap::new(), // Empty labels map
+            instructions: vec![Instruction::Mov(Register::D0, Operand::Value(10.0))],
         };
         robot.load_program(dummy_program);
         (robot, arena)

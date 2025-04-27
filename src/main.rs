@@ -1,4 +1,5 @@
 mod arena;
+mod audio;
 mod config;
 mod game;
 mod logging;
@@ -8,18 +9,17 @@ mod robot;
 mod types;
 mod utils;
 mod vm;
-mod audio;
 
 use crate::config::{ARENA_WIDTH, UI_PANEL_WIDTH, WINDOW_HEIGHT};
 use clap::Parser;
-use log::{error, info, LevelFilter};
+use log::{LevelFilter, error, info};
 use macroquad::prelude::*;
 use std::process;
 
+use crate::audio::AudioManager;
 use crate::game::Game;
 use crate::logging::init_logger;
 use crate::render::Renderer;
-use crate::audio::AudioManager;
 
 // Command line arguments structure
 #[derive(Parser, Debug)]
@@ -53,8 +53,8 @@ struct Args {
 fn window_conf() -> Conf {
     Conf {
         window_title: "Bot Arena".to_owned(),
-        window_width: (ARENA_WIDTH + UI_PANEL_WIDTH) as i32,
-        window_height: WINDOW_HEIGHT as i32,
+        window_width: (ARENA_WIDTH + UI_PANEL_WIDTH),
+        window_height: WINDOW_HEIGHT,
         high_dpi: true,
         ..Default::default()
     }

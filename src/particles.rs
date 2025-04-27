@@ -149,10 +149,12 @@ impl ParticleSystem {
             // Give particles a slight random drift, perpendicular to the trail direction
             let perpendicular_dir = Vec2::new(-direction.y, direction.x).normalize_or_zero();
             let drift_speed = self.rng.r#gen_range(0.0..=(config::UNIT_SIZE * 0.5)) as f32; // Small drift
-            let drift_velocity = perpendicular_dir * drift_speed * (self.rng.r#gen::<f32>() - 0.5) * 2.0; // Random direction
+            let drift_velocity =
+                perpendicular_dir * drift_speed * (self.rng.r#gen::<f32>() - 0.5) * 2.0; // Random direction
 
             // Base velocity can be zero or slightly backward to simulate dissipating smoke
-            let base_velocity = -direction.normalize_or_zero() * self.rng.r#gen_range(0.0..=(config::UNIT_SIZE*0.1)) as f32;
+            let base_velocity = -direction.normalize_or_zero()
+                * self.rng.r#gen_range(0.0..=(config::UNIT_SIZE * 0.1)) as f32;
 
             let final_velocity = base_velocity + drift_velocity;
 

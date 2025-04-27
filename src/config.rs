@@ -15,9 +15,6 @@ pub const UI_PANEL_WIDTH: i32 = 200; // Width of the side panel
 pub const ARENA_WIDTH: i32 = WINDOW_WIDTH - UI_PANEL_WIDTH; // Width for the arena rendering
 pub const ARENA_HEIGHT: i32 = WINDOW_HEIGHT; // Arena uses full height
 
-// Game rules
-pub const MAX_TURNS: u32 = 1000; // Maximum turns before draw
-
 // Scanner configuration
 pub const DEFAULT_SCANNER_FOV: f64 = 22.5; // +/- 11.25 degrees from center
 pub const DEFAULT_SCANNER_RANGE: f64 = 1.414; // Maximum arena diagonal (1.0 width + 1.0 height)

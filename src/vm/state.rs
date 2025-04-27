@@ -52,15 +52,8 @@ impl VMState {
             VMFault::DivisionByZero => 6,
             VMFault::NoComponentSelected => 7,
             VMFault::InvalidComponentForOp => 8,
-            // Add new fault codes
-            VMFault::InsufficientPower => 9,
-            VMFault::WeaponOverheated => 10, // Placeholder, not implemented yet
-            VMFault::InvalidWeaponPower => 11,
-            VMFault::InvalidScanResult => 12, // Placeholder, not implemented yet
-            VMFault::ProjectileError => 13,   // Placeholder, not implemented yet
             VMFault::CallStackOverflow => 14,
             VMFault::CallStackUnderflow => 15,
-            VMFault::NotImplemented => 99, // Fault code for unimplemented instructions
         };
         self.registers
             .set_internal(Register::Fault, fault_code as f64)
