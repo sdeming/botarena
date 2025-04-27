@@ -171,6 +171,7 @@ impl Arena {
                         config::UNIT_SIZE as f32 * 5.0,
                         0.6,
                     );
+                    audio_manager.play_wallhit();
                     self.projectiles.swap_remove(i);
                     projectile_removed = true;
                     break; // Exit sub-step loop
@@ -192,6 +193,7 @@ impl Arena {
                         config::UNIT_SIZE as f32 * 4.0,
                         0.5,
                     );
+                    audio_manager.play_wallhit();
                     self.projectiles.swap_remove(i);
                     projectile_removed = true;
                     break; // Exit sub-step loop
@@ -227,7 +229,7 @@ impl Arena {
 
                         let damage = proj_base_damage * proj_power;
                         robot.health -= damage;
-                        audio_manager.play_hit();
+                        audio_manager.play_bothit();
                         log::info!(
                             "Robot {} took {:.2} damage, health remaining: {:.2}",
                             robot.id,

@@ -1,4 +1,5 @@
 mod arena;
+mod assets;
 mod audio;
 mod config;
 mod game;

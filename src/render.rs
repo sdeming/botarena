@@ -1,4 +1,5 @@
 use crate::arena::*;
+use crate::assets::get_asset_bytes;
 use crate::config::{
     ARENA_HEIGHT, ARENA_WIDTH, UI_PANEL_WIDTH, UNIT_SIZE, WINDOW_HEIGHT, WINDOW_WIDTH,
 };
@@ -131,17 +132,23 @@ impl Renderer {
 
     // Load the custom title font
     pub async fn load_title_font(&mut self) {
-        match load_ttf_font("assets/title.ttf").await {
-            Ok(font) => self.title_font = Some(font),
-            Err(e) => log::error!("Failed to load font assets/title.ttf: {}", e),
+        match get_asset_bytes("title.ttf") {
+            Some(bytes) => match load_ttf_font_from_bytes(bytes.as_ref()) {
+                Ok(font) => self.title_font = Some(font),
+                Err(e) => log::error!("Failed to parse embedded font title.ttf: {}", e),
+            },
+            None => log::error!("Embedded font title.ttf not found"),
         }
     }
 
     // Load the custom UI font
     pub async fn load_ui_font(&mut self) {
-        match load_ttf_font("assets/default.ttf").await {
-            Ok(font) => self.ui_font = Some(font),
-            Err(e) => log::error!("Failed to load UI font assets/default.ttf: {}", e),
+        match get_asset_bytes("default.ttf") {
+            Some(bytes) => match load_ttf_font_from_bytes(bytes.as_ref()) {
+                Ok(font) => self.ui_font = Some(font),
+                Err(e) => log::error!("Failed to parse embedded font default.ttf: {}", e),
+            },
+            None => log::error!("Embedded font default.ttf not found"),
         }
     }
 
