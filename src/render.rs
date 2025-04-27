@@ -911,10 +911,15 @@ void main() {
             // Interpolate position for smooth rendering between game ticks
             let current_interp_pos =
                 utils::lerp_point(projectile.prev_position, projectile.position, alpha);
-            let current_screen_pos = point_to_vec2(current_interp_pos, arena_screen_width, arena_screen_height);
+            let current_screen_pos =
+                point_to_vec2(current_interp_pos, arena_screen_width, arena_screen_height);
 
             // Get the screen position from the *start* of the current tick
-            let prev_tick_screen_pos = point_to_vec2(projectile.prev_position, arena_screen_width, arena_screen_height);
+            let prev_tick_screen_pos = point_to_vec2(
+                projectile.prev_position,
+                arena_screen_width,
+                arena_screen_height,
+            );
 
             // Draw the vapor trail line (fading gray)
             let trail_color = faded_color(LIGHTGRAY, 0.5); // Use helper for faded color

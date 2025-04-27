@@ -3,6 +3,7 @@ use crate::config;
 use crate::types::Scanner;
 use crate::types::*;
 use crate::vm;
+use crate::vm::executor::InstructionExecutor;
 use crate::vm::instruction::Instruction;
 use crate::vm::parser;
 use crate::vm::state::VMState;
@@ -10,7 +11,6 @@ use rand::prelude::*;
 use std::collections::VecDeque;
 use std::f64::INFINITY;
 use std::f64::consts::PI;
-use crate::vm::executor::InstructionExecutor;
 
 // Represents the possible states of a robot
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -1367,7 +1367,10 @@ mod tests {
             .expect("MOV instruction execution failed");
 
         // Verify the MOV worked
-        assert_eq!(robot.vm_state.registers.get(Register::D0).unwrap(), test_value);
+        assert_eq!(
+            robot.vm_state.registers.get(Register::D0).unwrap(),
+            test_value
+        );
     }
 
     #[test]
@@ -1378,12 +1381,15 @@ mod tests {
         // We need the executor to process the instruction
         let executor = vm::executor::InstructionExecutor::new();
 
-        // --- Test setting velocity to 1.0 --- 
+        // --- Test setting velocity to 1.0 ---
         let target_grid_velocity = 1.0;
         let drive_instr = Instruction::Drive(Operand::Value(target_grid_velocity));
 
         // Explicitly select the Drive component (ID 1) before executing
-        robot.vm_state.set_selected_component(1).expect("Failed to select drive component");
+        robot
+            .vm_state
+            .set_selected_component(1)
+            .expect("Failed to select drive component");
 
         // Execute the Drive(1.0) instruction
         executor
@@ -1402,11 +1408,14 @@ mod tests {
             robot.drive.velocity
         );
 
-        // --- Test setting velocity to 0.0 --- 
+        // --- Test setting velocity to 0.0 ---
         let stop_instr = Instruction::Drive(Operand::Value(0.0));
 
         // Ensure Drive component is still selected (or re-select if necessary)
-        robot.vm_state.set_selected_component(1).expect("Failed to select drive component"); 
+        robot
+            .vm_state
+            .set_selected_component(1)
+            .expect("Failed to select drive component");
 
         // Execute the Drive(0.0) instruction
         executor
@@ -1422,15 +1431,18 @@ mod tests {
 
     // Added back the missing helper function
     fn setup_test_robot() -> (Robot, Arena) {
-        let mut robot = Robot::new(1, "Test".to_string(), Point{ x: 0.5, y: 0.5}, Point{ x: 0.5, y: 0.5});
+        let mut robot = Robot::new(
+            1,
+            "Test".to_string(),
+            Point { x: 0.5, y: 0.5 },
+            Point { x: 0.5, y: 0.5 },
+        );
         let arena = Arena::new();
         // Add a simple program if needed, e.g., MOV D0, 10
         // Note: load_program expects ParsedProgram, not Vec<Instruction>
         // Creating a dummy ParsedProgram for now
         let dummy_program = crate::vm::parser::ParsedProgram {
-            instructions: vec![
-                Instruction::Mov(Register::D0, Operand::Value(10.0))
-            ],
+            instructions: vec![Instruction::Mov(Register::D0, Operand::Value(10.0))],
             labels: std::collections::HashMap::new(), // Empty labels map
         };
         robot.load_program(dummy_program);

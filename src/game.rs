@@ -290,9 +290,13 @@ impl Game {
 
         // Update Phase 2: Physics and Interactions
         // Collect projectile movements for trail spawning *before* moving them
-        let mut projectile_movements: Vec<(Vec2, Vec2)> = Vec::with_capacity(self.arena.projectiles.len());
+        let mut projectile_movements: Vec<(Vec2, Vec2)> =
+            Vec::with_capacity(self.arena.projectiles.len());
         for projectile in &self.arena.projectiles {
-            let start_pos = Vec2::new(projectile.prev_position.x as f32, projectile.prev_position.y as f32);
+            let start_pos = Vec2::new(
+                projectile.prev_position.x as f32,
+                projectile.prev_position.y as f32,
+            );
             // Estimate end position based on current velocity and cycle duration
             // Note: This might differ slightly from the final position after collision checks
             let direction_rad = projectile.direction.to_radians(); // Convert degrees to radians
@@ -316,9 +320,7 @@ impl Game {
         // Note: We iterate using the collected movements, not the potentially modified projectile list
         for (start_pos, end_pos) in projectile_movements {
             self.particle_system.spawn_projectile_trail(
-                start_pos,
-                end_pos,
-                2,    // Number of particles per tick per projectile
+                start_pos, end_pos, 2,    // Number of particles per tick per projectile
                 0.25, // Lifetime of trail particles (in seconds)
             );
         }

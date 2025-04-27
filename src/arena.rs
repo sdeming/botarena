@@ -1,3 +1,4 @@
+use crate::audio::AudioManager;
 use crate::config;
 use crate::config::*;
 use crate::particles::ParticleSystem;
@@ -7,7 +8,6 @@ use ::rand::prelude::*;
 use macroquad::prelude::*;
 use macroquad::prelude::{ORANGE, SKYBLUE, Vec2, YELLOW};
 use std::f64::INFINITY;
-use crate::audio::AudioManager;
 
 // Represents an obstacle in the arena
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -588,7 +588,11 @@ mod tests {
             source_robot: 1,
         };
         arena.spawn_projectile(projectile2);
-        arena.update_projectiles(&mut robots, &mut particle_system_lethal, &audio_manager_lethal);
+        arena.update_projectiles(
+            &mut robots,
+            &mut particle_system_lethal,
+            &audio_manager_lethal,
+        );
         assert!(
             arena.projectiles.is_empty(),
             "Lethal projectile should be removed"
