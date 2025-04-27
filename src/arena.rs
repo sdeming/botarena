@@ -439,9 +439,10 @@ mod tests {
         };
         arena.spawn_projectile(projectile);
 
-        let mut robots = vec![]; // No robots needed for this test
+        let mut robots = vec![];
         let mut particle_system = ParticleSystem::new();
-        arena.update_projectiles(&mut robots, &mut particle_system);
+        let audio_manager = AudioManager::new();
+        arena.update_projectiles(&mut robots, &mut particle_system, &audio_manager);
 
         assert_eq!(arena.projectiles.len(), 1);
         let updated_proj = &arena.projectiles[0];
@@ -468,8 +469,8 @@ mod tests {
 
         let mut robots = vec![];
         let mut particle_system = ParticleSystem::new();
-        // Cycle 1: Moves to 0.98 + 0.05 = 1.03 (hits boundary)
-        arena.update_projectiles(&mut robots, &mut particle_system);
+        let audio_manager = AudioManager::new();
+        arena.update_projectiles(&mut robots, &mut particle_system, &audio_manager);
 
         assert!(
             arena.projectiles.is_empty(),
@@ -504,8 +505,8 @@ mod tests {
 
         let mut robots = vec![];
         let mut particle_system = ParticleSystem::new();
-        // Cycle 1: Moves 1 unit (0.05) right, should enter obstacle cell
-        arena.update_projectiles(&mut robots, &mut particle_system);
+        let audio_manager = AudioManager::new();
+        arena.update_projectiles(&mut robots, &mut particle_system, &audio_manager);
 
         assert!(
             arena.projectiles.is_empty(),
@@ -524,6 +525,7 @@ mod tests {
         let mut robot2 = Robot::new(2, "TestRobot2".to_string(), robot2_start, arena_center);
         robot2.status = RobotStatus::Active; // <-- Manually set status for test
         let mut particle_system = ParticleSystem::new(); // <-- Create dummy particle system
+        let audio_manager = AudioManager::new(); // <-- Create dummy manager
 
         // Spawn projectile from robot 1 aimed at robot 2
         let proj_start_pos = Point {
@@ -544,7 +546,7 @@ mod tests {
         let initial_health_r2 = robot2.health;
         let mut robots = vec![robot1, robot2]; // Pass robots as mutable slice
 
-        arena.update_projectiles(&mut robots, &mut particle_system);
+        arena.update_projectiles(&mut robots, &mut particle_system, &audio_manager);
 
         assert!(
             arena.projectiles.is_empty(),
@@ -571,6 +573,7 @@ mod tests {
         robots[1].health = 5.0; // Low health
         robots[1].status = RobotStatus::Active; // Ensure status is Active for lethal test too
         let mut particle_system_lethal = ParticleSystem::new(); // Separate system for lethal test
+        let audio_manager_lethal = AudioManager::new(); // <-- Create dummy manager for lethal
         let proj2_start_pos = Point {
             x: robots[0].position.x + config::UNIT_SIZE,
             y: robots[0].position.y,
@@ -585,7 +588,7 @@ mod tests {
             source_robot: 1,
         };
         arena.spawn_projectile(projectile2);
-        arena.update_projectiles(&mut robots, &mut particle_system_lethal);
+        arena.update_projectiles(&mut robots, &mut particle_system_lethal, &audio_manager_lethal);
         assert!(
             arena.projectiles.is_empty(),
             "Lethal projectile should be removed"
@@ -609,6 +612,7 @@ mod tests {
         let mut robot1 = Robot::new(1, "TestRobot1".to_string(), robot1_start, arena_center);
         robot1.status = RobotStatus::Active; // Set active
         let mut particle_system = ParticleSystem::new(); // <-- Create dummy particle system
+        let audio_manager = AudioManager::new(); // <-- Create dummy manager
 
         // Spawn projectile from robot 1 aimed back at itself (180 deg)
         // It starts 1 unit away, but will pass through the origin point on next cycle
@@ -631,7 +635,7 @@ mod tests {
         let mut robots = vec![robot1];
 
         // Cycle 1: Projectile moves left, passing through (0.5, 0.5)
-        arena.update_projectiles(&mut robots, &mut particle_system);
+        arena.update_projectiles(&mut robots, &mut particle_system, &audio_manager);
 
         assert_eq!(
             arena.projectiles.len(),

@@ -10,6 +10,7 @@ use rand::prelude::*;
 use std::collections::VecDeque;
 use std::f64::INFINITY;
 use std::f64::consts::PI;
+use crate::vm::executor::InstructionExecutor;
 
 // Represents the possible states of a robot
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -1349,5 +1350,90 @@ mod tests {
         }
     }
 
-    // ... other tests ...
+    #[test]
+    fn test_component_operations() {
+        let (mut robot, arena) = setup_test_robot();
+
+        // Use the general InstructionExecutor and its new() method
+        let executor = vm::executor::InstructionExecutor::new();
+
+        // Use a simple MOV instruction for testing the processor call setup
+        let test_value = 42.0;
+        let instr = Instruction::Mov(Register::D0, Operand::Value(test_value));
+
+        // Call execute_instruction on the general executor
+        executor
+            .execute_instruction(&mut robot, &[], &arena, &instr, &mut VecDeque::new())
+            .expect("MOV instruction execution failed");
+
+        // Verify the MOV worked
+        assert_eq!(robot.vm_state.registers.get(Register::D0).unwrap(), test_value);
+    }
+
+    #[test]
+    fn test_drive_train_processing() {
+        let (mut robot, arena) = setup_test_robot(); // Use setup helper
+        let mut command_queue = VecDeque::new();
+
+        // We need the executor to process the instruction
+        let executor = vm::executor::InstructionExecutor::new();
+
+        // --- Test setting velocity to 1.0 --- 
+        let target_grid_velocity = 1.0;
+        let drive_instr = Instruction::Drive(Operand::Value(target_grid_velocity));
+
+        // Explicitly select the Drive component (ID 1) before executing
+        robot.vm_state.set_selected_component(1).expect("Failed to select drive component");
+
+        // Execute the Drive(1.0) instruction
+        executor
+            .execute_instruction(&mut robot, &[], &arena, &drive_instr, &mut command_queue)
+            .expect("Drive(1.0) instruction execution failed");
+
+        // Calculate the expected velocity in coordinate units per cycle
+        let expected_coord_velocity_per_cycle =
+            target_grid_velocity * config::UNIT_SIZE / config::CYCLES_PER_TURN as f64;
+
+        // Verify the velocity was set correctly
+        assert!(
+            (robot.drive.velocity - expected_coord_velocity_per_cycle).abs() < 1e-9,
+            "Drive velocity mismatch. Expected: {}, Actual: {}",
+            expected_coord_velocity_per_cycle,
+            robot.drive.velocity
+        );
+
+        // --- Test setting velocity to 0.0 --- 
+        let stop_instr = Instruction::Drive(Operand::Value(0.0));
+
+        // Ensure Drive component is still selected (or re-select if necessary)
+        robot.vm_state.set_selected_component(1).expect("Failed to select drive component"); 
+
+        // Execute the Drive(0.0) instruction
+        executor
+            .execute_instruction(&mut robot, &[], &arena, &stop_instr, &mut command_queue)
+            .expect("Drive(0.0) instruction execution failed");
+
+        assert!(
+            (robot.drive.velocity - 0.0).abs() < 1e-9,
+            "Drive velocity should be 0.0 after Drive(0.0), but was {}",
+            robot.drive.velocity
+        );
+    }
+
+    // Added back the missing helper function
+    fn setup_test_robot() -> (Robot, Arena) {
+        let mut robot = Robot::new(1, "Test".to_string(), Point{ x: 0.5, y: 0.5}, Point{ x: 0.5, y: 0.5});
+        let arena = Arena::new();
+        // Add a simple program if needed, e.g., MOV D0, 10
+        // Note: load_program expects ParsedProgram, not Vec<Instruction>
+        // Creating a dummy ParsedProgram for now
+        let dummy_program = crate::vm::parser::ParsedProgram {
+            instructions: vec![
+                Instruction::Mov(Register::D0, Operand::Value(10.0))
+            ],
+            labels: std::collections::HashMap::new(), // Empty labels map
+        };
+        robot.load_program(dummy_program);
+        (robot, arena)
+    }
 }
