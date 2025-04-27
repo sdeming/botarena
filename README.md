@@ -1,5 +1,7 @@
 # Bot Arena
 
+![GitHub Workflow Status](https://img.shields.io/github/workflow/status/sdeming/botarena/CI?label=test)
+
 ![Bot Arena](https://raw.githubusercontent.com/sdeming/botarena/main/screenshot.png)
 
 A programmable robot battle simulator written in Rust. Program your own battle bots in a custom stack-based assembly language (RASM), then watch them fight in a dynamic, obstacle-filled arena! Supports up to 4 robots per match, real-time rendering, and detailed logging for debugging and analysis.
