@@ -798,9 +798,7 @@ pub fn parse_assembly(
     // Check for any errors during parsing and collect valid instructions
     let instructions: Vec<Instruction> = collected_results.into_iter().collect::<Result<_, _>>()?;
 
-    Ok(ParsedProgram {
-        instructions,
-    })
+    Ok(ParsedProgram { instructions })
 }
 
 // Helper: parse an operand (register, value, or constant)

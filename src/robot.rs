@@ -882,8 +882,8 @@ mod tests {
     use crate::types::ArenaCommand;
     // Import ArenaCommand
     use crate::types::Point;
-    use crate::vm::executor::component_ops::ComponentOperations;
     use crate::vm::executor::Operand;
+    use crate::vm::executor::component_ops::ComponentOperations;
     use crate::vm::executor::processor::InstructionProcessor;
     use crate::vm::instruction::Instruction;
     use crate::vm::parser::{ParsedProgram, parse_assembly};

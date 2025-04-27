@@ -101,7 +101,7 @@ impl Arena {
             y: (grid_y as f64 + 0.5) * self.unit_size,
         }
     }
-    
+
     // Adds a projectile to the arena's list
     pub fn spawn_projectile(&mut self, projectile: Projectile) {
         log::debug!(

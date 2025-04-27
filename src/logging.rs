@@ -60,7 +60,8 @@ impl log::Log for BotArenaLogger {
             // Look for "Robot N" pattern
             if robot_id.is_none() {
                 if let Some(robot_idx) = message.find("Robot ") {
-                    if let Some(end_idx) = message[robot_idx + 6..].find(|c: char| !c.is_ascii_digit())
+                    if let Some(end_idx) =
+                        message[robot_idx + 6..].find(|c: char| !c.is_ascii_digit())
                     {
                         if let Ok(id) =
                             message[robot_idx + 6..robot_idx + 6 + end_idx].parse::<u32>()
@@ -73,7 +74,8 @@ impl log::Log for BotArenaLogger {
 
             // Look for Cycle N pattern
             if let Some(cycle_idx) = message.find("Cycle ") {
-                if let Some(end_idx) = message[cycle_idx + 6..].find(|c: char| !c.is_ascii_digit()) {
+                if let Some(end_idx) = message[cycle_idx + 6..].find(|c: char| !c.is_ascii_digit())
+                {
                     if let Ok(c) = message[cycle_idx + 6..cycle_idx + 6 + end_idx].parse::<u32>() {
                         cycle = Some(c);
                     }
