@@ -1,6 +1,6 @@
 # Bot Arena
 
-![GitHub Workflow Status](https://img.shields.io/github/workflow/status/sdeming/botarena/CI?label=test)
+[![Bot Arena CI](https://github.com/sdeming/botarena/actions/workflows/botarena.yml/badge.svg)](https://github.com/sdeming/botarena/actions/workflows/botarena.yml)
 
 ![Bot Arena](https://raw.githubusercontent.com/sdeming/botarena/main/screenshot.png)
 
