@@ -30,6 +30,7 @@ pub enum Register {
     // Special registers
     Result,
     Fault,
+    Dbg, // Debug register for tracking debug values
     // Memory index register
     Index,
     // State registers (read-only)
@@ -77,6 +78,7 @@ impl Register {
                 | Register::C
                 | Register::Result
                 | Register::Fault
+                | Register::Dbg // Debug register is writable
                 | Register::Index // Added Index register
         )
     }
@@ -91,12 +93,12 @@ impl Register {
 #[derive(Debug, Clone)]
 pub struct Registers {
     // All registers as f64 (except @c, which is i64 internally)
-    data: [f64; 42], // Increased size from 41 to 42 for Index
+    data: [f64; 43], // Increased size from 42 to 43 for Dbg
 }
 
 impl Registers {
     pub fn new() -> Self {
-        Registers { data: [0.0; 42] }
+        Registers { data: [0.0; 43] }
     }
 
     /// Get the index for a register in the data array
@@ -125,22 +127,23 @@ impl Registers {
             C => 19,
             Result => 20,
             Fault => 21,
-            Index => 22,
-            Turn => 23,
-            Cycle => 24,
-            Rand => 25,
-            Health => 26,
-            Power => 27,
-            Component => 28,
-            TurretDirection => 29,
-            DriveDirection => 30,
-            DriveVelocity => 31,
-            PosX => 32,
-            PosY => 33,
-            ForwardDistance => 34,
-            BackwardDistance => 35,
-            TargetDistance => 36,
-            TargetDirection => 37,
+            Dbg => 22,
+            Index => 23,
+            Turn => 24,
+            Cycle => 25,
+            Rand => 26,
+            Health => 27,
+            Power => 28,
+            Component => 29,
+            TurretDirection => 30,
+            DriveDirection => 31,
+            DriveVelocity => 32,
+            PosX => 33,
+            PosY => 34,
+            ForwardDistance => 35,
+            BackwardDistance => 36,
+            TargetDistance => 37,
+            TargetDirection => 38,
         }
     }
 

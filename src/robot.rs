@@ -494,6 +494,7 @@ impl Robot {
             C,
             Result,
             Fault,
+            Dbg,
             Turn,
             Cycle,
             Rand,

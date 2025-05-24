@@ -857,6 +857,7 @@ fn parse_register(part: Option<&&str>, line: usize) -> Result<Register, ParseErr
         "@c" => Ok(C),
         "@result" => Ok(Result),
         "@fault" => Ok(Fault),
+        "@dbg" => Ok(Dbg),
         "@index" => Ok(Index),
         "@turn" => Ok(Turn),
         "@cycle" => Ok(Cycle),

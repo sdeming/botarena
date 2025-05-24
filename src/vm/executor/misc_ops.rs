@@ -42,12 +42,20 @@ impl InstructionProcessor for MiscellaneousOperations {
                 // Get the value to debug from the operand
                 let val = op.get_value(&robot.vm_state)?;
 
-                // Log the debug value
+                // Set the @dbg register to the debug value
+                robot
+                    .vm_state
+                    .registers
+                    .set_internal(crate::vm::registers::Register::Dbg, val)
+                    .unwrap();
+
+                // Log the debug value with @dbg value included
                 crate::debug_instructions!(
                     robot.id,
                     robot.vm_state.turn,
                     robot.vm_state.cycle,
-                    "DBG instruction: {}",
+                    "DBG instruction: {} (@dbg={})",
+                    val,
                     val
                 );
 
