@@ -127,6 +127,7 @@ mod tests {
             "TestRobot0".to_string(),
             Point { x: 0.5, y: 0.5 },
             center,
+            None,
         );
         let command_queue = VecDeque::new();
         (robot, arena, command_queue)
@@ -155,6 +156,7 @@ mod tests {
             "TestRobot0".to_string(),
             Point { x: 0.5, y: 0.5 },
             center,
+            None,
         );
         let mut command_queue = VecDeque::new();
 
@@ -188,6 +190,7 @@ mod tests {
             "TestRobot0".to_string(),
             Point { x: 0.5, y: 0.5 },
             center,
+            None,
         );
         let mut command_queue = VecDeque::new();
 

@@ -49,6 +49,14 @@ struct Args {
     /// Disable sound effects
     #[arg(long)]
     no_audio: bool,
+
+    /// Random seed for deterministic simulation (u64)
+    #[arg(long)]
+    seed: Option<u64>,
+
+    /// Run simulation without graphics (headless mode for fast testing)
+    #[arg(long)]
+    simulate: bool,
 }
 
 fn window_conf() -> Conf {
@@ -90,22 +98,15 @@ async fn main() {
 
     info!("Bot Arena starting...");
 
-    // Create Renderer and load fonts
-    let mut renderer = Renderer::new();
-    renderer.load_title_font().await; // Load title font
-    renderer.load_ui_font().await; // Load UI font
-    renderer.init_glow_resources();
-    renderer.init_scanner_material();
-
     // Create AudioManager
     let mut audio_manager = AudioManager::new();
     // Load sounds only if --no-audio is NOT specified
-    if !args.no_audio {
+    if !args.no_audio && !args.simulate {
         audio_manager.load_assets().await;
     }
 
     // Create Game instance (passing potentially empty audio_manager)
-    let mut game = match Game::new(&args.robot_files, args.max_turns, audio_manager) {
+    let mut game = match Game::new(&args.robot_files, args.max_turns, audio_manager, args.seed) {
         Ok(g) => g,
         Err(e) => {
             error!("Failed to initialize game: {}", e);
@@ -117,10 +118,26 @@ async fn main() {
         game.arena.place_obstacles();
     }
 
-    // Run the game loop
-    if let Err(e) = game.run(&mut renderer).await {
-        error!("Game loop error: {}", e);
-        process::exit(1);
+    // Run the game loop - either simulate mode or with graphics
+    if args.simulate {
+        // Headless simulation mode
+        if let Err(e) = game.run_simulation().await {
+            error!("Simulation error: {}", e);
+            process::exit(1);
+        }
+    } else {
+        // Create Renderer and load fonts (only for graphics mode)
+        let mut renderer = Renderer::new();
+        renderer.load_title_font().await; // Load title font
+        renderer.load_ui_font().await; // Load UI font
+        renderer.init_glow_resources();
+        renderer.init_scanner_material();
+
+        // Run the game loop with graphics
+        if let Err(e) = game.run(&mut renderer).await {
+            error!("Game loop error: {}", e);
+            process::exit(1);
+        }
     }
 
     info!("Bot Arena finished.");

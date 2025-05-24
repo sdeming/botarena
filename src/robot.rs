@@ -7,6 +7,7 @@ use crate::vm::instruction::Instruction;
 use crate::vm::parser;
 use crate::vm::state::VMState;
 use rand::prelude::*;
+use rand::RngCore;
 use std::collections::VecDeque;
 use std::f64::consts::PI;
 
@@ -57,7 +58,6 @@ impl Default for TurretComponent {
 }
 
 // Represents a robot in the arena
-#[derive(Debug, Clone)]
 pub struct Robot {
     pub id: u32,      // Unique identifier
     pub name: String, // Name derived from filename
@@ -72,18 +72,49 @@ pub struct Robot {
     pub prev_turret_direction: f64, // <-- Add previous turret direction
     pub vm_state: VMState,          // Made public for executor access
     pub program: Vec<Instruction>,
-    pub rng: ThreadRng,
+    pub rng: Box<dyn RngCore>,
     pub aoi: Vec<u32>, // Area of interest - IDs of nearby robots
+}
+
+impl std::fmt::Debug for Robot {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("Robot")
+            .field("id", &self.id)
+            .field("name", &self.name)
+            .field("position", &self.position)
+            .field("prev_position", &self.prev_position)
+            .field("health", &self.health)
+            .field("power", &self.power)
+            .field("status", &self.status)
+            .field("drive", &self.drive)
+            .field("prev_drive_direction", &self.prev_drive_direction)
+            .field("turret", &self.turret)
+            .field("prev_turret_direction", &self.prev_turret_direction)
+            .field("vm_state", &self.vm_state)
+            .field("program", &self.program)
+            .field("rng", &"<RNG>")  // Can't debug RNG, so just show placeholder
+            .field("aoi", &self.aoi)
+            .finish()
+    }
 }
 
 impl Robot {
     // Creates a new robot with default values at a given position
-    pub fn new(id: u32, name: String, position: Point, center: Point) -> Self {
+    pub fn new(id: u32, name: String, position: Point, center: Point, seed: Option<u64>) -> Self {
         // Calculate angle towards the center
         let dx = center.x - position.x;
         let dy = center.y - position.y;
         let angle_rad = dy.atan2(dx);
         let initial_direction_deg = angle_rad.to_degrees().rem_euclid(360.0);
+
+        // Create RNG - either seeded or using thread_rng
+        let rng: Box<dyn RngCore> = if let Some(seed_value) = seed {
+            use rand::SeedableRng;
+            use rand::rngs::StdRng;
+            Box::new(StdRng::seed_from_u64(seed_value))
+        } else {
+            Box::new(thread_rng())
+        };
 
         Robot {
             id,
@@ -108,7 +139,7 @@ impl Robot {
             prev_turret_direction: initial_direction_deg, // Initialize prev state
             vm_state: VMState::new(),
             program: Vec::new(), // Initialize empty program
-            rng: thread_rng(),
+            rng,
             aoi: Vec::new(), // Initialize empty area of interest
         }
     }
@@ -927,7 +958,7 @@ mod tests {
             x: arena.width / 2.0,
             y: arena.height / 2.0,
         };
-        let mut robot = Robot::new(0, String::new(), Point { x: 1.0, y: 1.0 }, center);
+        let mut robot = Robot::new(0, String::new(), Point { x: 1.0, y: 1.0 }, center, None);
         let mut command_queue = VecDeque::new();
 
         // Print arena size
@@ -1074,7 +1105,7 @@ mod tests {
             x: arena.width / 2.0,
             y: arena.height / 2.0,
         };
-        let mut robot = Robot::new(0, String::new(), Point { x: 1.0, y: 1.0 }, center);
+        let mut robot = Robot::new(0, String::new(), Point { x: 1.0, y: 1.0 }, center, None);
         let mut command_queue = VecDeque::new();
 
         // First select drive component
@@ -1140,6 +1171,7 @@ mod tests {
             String::new(),
             Point { x: 0.5, y: 0.5 },
             Point { x: 0.5, y: 0.5 },
+            None,
         );
         let arena = Arena::default();
         let mut command_queue = VecDeque::new();
@@ -1199,6 +1231,7 @@ mod tests {
             String::new(),
             Point { x: 0.5, y: 0.5 },
             Point { x: 0.5, y: 0.5 },
+            None,
         );
         let arena = Arena::default();
         let mut command_queue = VecDeque::new();
@@ -1240,6 +1273,7 @@ mod tests {
             String::new(),
             Point { x: 0.5, y: 0.5 },
             Point { x: 0.5, y: 0.5 },
+            None,
         );
         let arena = Arena::default();
 
@@ -1268,7 +1302,7 @@ mod tests {
             x: arena.width / 2.0,
             y: arena.height / 2.0,
         };
-        let mut robot = Robot::new(0, "TestRobot".to_string(), Point { x: 0.5, y: 0.5 }, center);
+        let mut robot = Robot::new(0, "TestRobot".to_string(), Point { x: 0.5, y: 0.5 }, center, None);
         let mut command_queue = VecDeque::new();
 
         // Set up robot state
@@ -1409,6 +1443,7 @@ mod tests {
             "Test".to_string(),
             Point { x: 0.5, y: 0.5 },
             Point { x: 0.5, y: 0.5 },
+            None,
         );
         let arena = Arena::new();
         // Add a simple program if needed, e.g., MOV D0, 10

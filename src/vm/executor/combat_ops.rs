@@ -144,27 +144,29 @@ mod tests {
 
     // Helper function to create a test robot
     fn create_test_robot() -> Robot {
-        let arena = Arena::new(); // Create a dummy arena to get center
+        let arena = Arena::new();
         let center = Point {
             x: arena.width / 2.0,
             y: arena.height / 2.0,
         };
-        Robot::new(
-            1,
-            "TestRobot1".to_string(),
-            Point { x: 0.5, y: 0.5 },
-            center,
-        )
+        let mut robot = Robot::new(1, "TestRobot".to_string(), Point { x: 0.5, y: 0.5 }, center, None);
+
+        // Initialize some default state for testing
+        robot.health = 100.0;
+        robot.power = 1.0;
+        robot.status = RobotStatus::Active;
+
+        robot
     }
 
     // Helper function to create a test robot at a specific position
     fn create_test_robot_at(pos: Point, id: u32) -> Robot {
-        let arena = Arena::new(); // Create a dummy arena to get center
+        let arena = Arena::new();
         let center = Point {
             x: arena.width / 2.0,
             y: arena.height / 2.0,
         };
-        Robot::new(id, format!("TestRobot{}", id), pos, center)
+        Robot::new(id, format!("TestRobot{}", id), pos, center, None)
     }
 
     #[test]
@@ -242,7 +244,10 @@ mod tests {
         let other_robot_pos = Point { x: 0.7, y: 0.5 };
         let mut other_robot = create_test_robot_at(other_robot_pos, 2);
         other_robot.status = RobotStatus::Active;
-        let all_robots = vec![robot.clone(), other_robot];
+        
+        // Create a separate robot instance for the robots vector
+        let robot_for_vec = create_test_robot();
+        let all_robots = vec![robot_for_vec, other_robot];
 
         let executor = InstructionExecutor::new();
 
@@ -289,7 +294,10 @@ mod tests {
         robot.vm_state.set_selected_component(2).unwrap();
         let arena = Arena::new();
         let mut command_queue = VecDeque::new();
-        let all_robots = vec![robot.clone()];
+        
+        // Create a separate robot instance for the robots vector
+        let robot_for_vec = create_test_robot();
+        let all_robots = vec![robot_for_vec];
         let executor = InstructionExecutor::new();
 
         // Execute scan instruction
@@ -329,7 +337,10 @@ mod tests {
         let other_robot_pos = Point { x: 0.7, y: 0.5 };
         let mut other_robot = create_test_robot_at(other_robot_pos, 2);
         other_robot.status = RobotStatus::Active;
-        let robots = vec![robot.clone(), other_robot];
+        
+        // Create a separate robot instance for the robots vector
+        let robot_for_vec = create_test_robot();
+        let robots = vec![robot_for_vec, other_robot];
 
         let mut command_queue = VecDeque::new();
 

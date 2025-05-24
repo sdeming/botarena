@@ -227,7 +227,7 @@ mod tests {
             x: arena.width / 2.0,
             y: arena.height / 2.0,
         };
-        Robot::new(1, "TestRobot".to_string(), Point { x: 0.5, y: 0.5 }, center)
+        Robot::new(1, "TestRobot".to_string(), Point { x: 0.5, y: 0.5 }, center, None)
     }
 
     fn setup() -> (Robot, Arena, VecDeque<ArenaCommand>) {
