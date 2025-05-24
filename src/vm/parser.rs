@@ -26,19 +26,14 @@ fn parse_constant_expression(
     constants: &HashMap<String, f64>,
     line: usize,
 ) -> Result<f64, ParseError> {
-    // First try to parse as a simple number for backward compatibility
     if let Ok(val) = expr.parse::<f64>() {
         return Ok(val);
     }
 
-    // Try to parse as a constant name
     if let Some(&val) = constants.get(expr) {
         return Ok(val);
     }
 
-    // Simple recursive descent parser for expressions
-
-    // Tokenize the expression - split by operators and parentheses while preserving them
     let expr = expr
         .replace("(", " ( ")
         .replace(")", " ) ")
@@ -50,7 +45,6 @@ fn parse_constant_expression(
 
     let tokens: Vec<&str> = expr.split_whitespace().collect();
 
-    // Define a recursive parsing function
     fn parse_expr(
         tokens: &[&str],
         pos: &mut usize,
@@ -149,16 +143,13 @@ fn parse_constant_expression(
                 }
             }
             "-" => {
-                // Unary minus
                 let val = parse_factor(tokens, pos, constants, line)?;
                 Ok(-val)
             }
             _ => {
-                // Try parsing as a number
                 if let Ok(val) = token.parse::<f64>() {
                     Ok(val)
                 } else if let Some(&val) = constants.get(token) {
-                    // Try parsing as a constant
                     Ok(val)
                 } else {
                     Err(ParseError {
@@ -866,6 +857,7 @@ fn parse_register(part: Option<&&str>, line: usize) -> Result<Register, ParseErr
         "@c" => Ok(C),
         "@result" => Ok(Result),
         "@fault" => Ok(Fault),
+        "@dbg" => Ok(Dbg),
         "@index" => Ok(Index),
         "@turn" => Ok(Turn),
         "@cycle" => Ok(Cycle),
@@ -880,8 +872,6 @@ fn parse_register(part: Option<&&str>, line: usize) -> Result<Register, ParseErr
         "@posy" | "@pos_y" => Ok(PosY),
         "@forwarddistance" | "@forward_distance" => Ok(ForwardDistance),
         "@backwarddistance" | "@backward_distance" => Ok(BackwardDistance),
-        "@weaponpower" | "@weapon_power" => Ok(WeaponPower),
-        "@weaponcooldown" | "@weapon_cooldown" => Ok(WeaponCooldown),
         "@targetdistance" | "@target_distance" => Ok(TargetDistance),
         "@targetdirection" | "@target_direction" => Ok(TargetDirection),
         _ => Err(ParseError {
@@ -1055,7 +1045,7 @@ mod tests {
     fn test_constant_expression_with_predefined_constants() {
         let mut predefined = HashMap::new();
         predefined.insert("ARENA_WIDTH".to_string(), 20.0);
-        predefined.insert("ARENA_HEIGHT".to_string(), 15.0);
+        predefined.insert("ARENA_HEIGHT".to_string(), 20.0);
         predefined.insert("PI".to_string(), PI);
 
         let source = r#"
@@ -1080,12 +1070,12 @@ mod tests {
             _ => panic!("Expected Push instruction with value 10.0"),
         }
         match &program.instructions[1] {
-            Instruction::Push(Operand::Value(v)) => assert_eq!(*v, 7.5), // 15 / 2
-            _ => panic!("Expected Push instruction with value 7.5"),
+            Instruction::Push(Operand::Value(v)) => assert_eq!(*v, 10.0), // 20 / 2
+            _ => panic!("Expected Push instruction with value 10.0"),
         }
         match &program.instructions[2] {
-            Instruction::Push(Operand::Value(v)) => assert_eq!(*v, 300.0), // 20 * 15
-            _ => panic!("Expected Push instruction with value 300.0"),
+            Instruction::Push(Operand::Value(v)) => assert_eq!(*v, 400.0), // 20 * 20
+            _ => panic!("Expected Push instruction with value 400.0"),
         }
     }
 

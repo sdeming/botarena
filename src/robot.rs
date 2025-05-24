@@ -6,6 +6,7 @@ use crate::vm;
 use crate::vm::instruction::Instruction;
 use crate::vm::parser;
 use crate::vm::state::VMState;
+use rand::RngCore;
 use rand::prelude::*;
 use std::collections::VecDeque;
 use std::f64::consts::PI;
@@ -57,7 +58,6 @@ impl Default for TurretComponent {
 }
 
 // Represents a robot in the arena
-#[derive(Debug, Clone)]
 pub struct Robot {
     pub id: u32,      // Unique identifier
     pub name: String, // Name derived from filename
@@ -72,18 +72,49 @@ pub struct Robot {
     pub prev_turret_direction: f64, // <-- Add previous turret direction
     pub vm_state: VMState,          // Made public for executor access
     pub program: Vec<Instruction>,
-    pub rng: ThreadRng,
+    pub rng: Box<dyn RngCore>,
     pub aoi: Vec<u32>, // Area of interest - IDs of nearby robots
+}
+
+impl std::fmt::Debug for Robot {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("Robot")
+            .field("id", &self.id)
+            .field("name", &self.name)
+            .field("position", &self.position)
+            .field("prev_position", &self.prev_position)
+            .field("health", &self.health)
+            .field("power", &self.power)
+            .field("status", &self.status)
+            .field("drive", &self.drive)
+            .field("prev_drive_direction", &self.prev_drive_direction)
+            .field("turret", &self.turret)
+            .field("prev_turret_direction", &self.prev_turret_direction)
+            .field("vm_state", &self.vm_state)
+            .field("program", &self.program)
+            .field("rng", &"<RNG>") // Can't debug RNG, so just show placeholder
+            .field("aoi", &self.aoi)
+            .finish()
+    }
 }
 
 impl Robot {
     // Creates a new robot with default values at a given position
-    pub fn new(id: u32, name: String, position: Point, center: Point) -> Self {
+    pub fn new(id: u32, name: String, position: Point, center: Point, seed: Option<u64>) -> Self {
         // Calculate angle towards the center
         let dx = center.x - position.x;
         let dy = center.y - position.y;
         let angle_rad = dy.atan2(dx);
         let initial_direction_deg = angle_rad.to_degrees().rem_euclid(360.0);
+
+        // Create RNG - either seeded or using thread_rng
+        let rng: Box<dyn RngCore> = if let Some(seed_value) = seed {
+            use rand::SeedableRng;
+            use rand::rngs::StdRng;
+            Box::new(StdRng::seed_from_u64(seed_value))
+        } else {
+            Box::new(thread_rng())
+        };
 
         Robot {
             id,
@@ -108,7 +139,7 @@ impl Robot {
             prev_turret_direction: initial_direction_deg, // Initialize prev state
             vm_state: VMState::new(),
             program: Vec::new(), // Initialize empty program
-            rng: thread_rng(),
+            rng,
             aoi: Vec::new(), // Initialize empty area of interest
         }
     }
@@ -325,13 +356,6 @@ impl Robot {
         registers
             .set_internal(vm::registers::Register::BackwardDistance, backward_dist)
             .unwrap();
-        // Weapon related registers
-        registers
-            .set_internal(vm::registers::Register::WeaponPower, self.power)
-            .unwrap(); // Example: Use robot power
-        registers
-            .set_internal(vm::registers::Register::WeaponCooldown, 0.0)
-            .unwrap(); // Placeholder
     }
 
     /// Execute one simulation cycle's worth of VM instructions.
@@ -470,6 +494,7 @@ impl Robot {
             C,
             Result,
             Fault,
+            Dbg,
             Turn,
             Cycle,
             Rand,
@@ -483,8 +508,6 @@ impl Robot {
             PosY,
             ForwardDistance,
             BackwardDistance,
-            WeaponPower,
-            WeaponCooldown,
             TargetDistance,
             TargetDirection,
         ];
@@ -936,7 +959,7 @@ mod tests {
             x: arena.width / 2.0,
             y: arena.height / 2.0,
         };
-        let mut robot = Robot::new(0, String::new(), Point { x: 1.0, y: 1.0 }, center);
+        let mut robot = Robot::new(0, String::new(), Point { x: 1.0, y: 1.0 }, center, None);
         let mut command_queue = VecDeque::new();
 
         // Print arena size
@@ -950,7 +973,7 @@ mod tests {
         let program = parse_program(
             r#"
             select 1      ; select drive
-            drive 1.0     ; set velocity to 1.0 grid unit per turn
+            drive 0.2     ; set velocity to 0.2 normalized speed = 1.0 grid unit per turn
             rotate 0.0    ; set rotation to 0 degrees (east)
         "#,
         );
@@ -969,7 +992,8 @@ mod tests {
         // Explicitly set direction to 0 for this test, overriding center-facing default
         robot.drive.direction = 0.0;
 
-        // Expected velocity is 1.0 * UNIT_SIZE / CYCLES_PER_TURN coordinate units per cycle
+        // Expected velocity: 0.2 normalized speed * 5 grid units per turn = 1.0 grid unit per turn
+        // 1.0 grid unit per turn = 1.0 * UNIT_SIZE / CYCLES_PER_TURN coordinate units per cycle
         let expected_velocity = config::UNIT_SIZE / config::CYCLES_PER_TURN as f64;
 
         // Debug print
@@ -1058,7 +1082,7 @@ mod tests {
         // For the test, we'll check if the robot moved 1 grid unit (with a small tolerance)
         assert!(
             (distance_moved - config::UNIT_SIZE).abs() < 0.001,
-            "Robot should move {} coordinate units (1 grid unit) per turn with drive 1.0, but moved {} coordinate units",
+            "Robot should move {} coordinate units (1 grid unit) per turn with drive 0.2, but moved {} coordinate units",
             config::UNIT_SIZE,
             distance_moved
         );
@@ -1082,14 +1106,15 @@ mod tests {
             x: arena.width / 2.0,
             y: arena.height / 2.0,
         };
-        let mut robot = Robot::new(0, String::new(), Point { x: 1.0, y: 1.0 }, center);
+        let mut robot = Robot::new(0, String::new(), Point { x: 1.0, y: 1.0 }, center, None);
         let mut command_queue = VecDeque::new();
 
         // First select drive component
         robot.vm_state.set_selected_component(1).unwrap();
 
         // Set velocity to 0.5 grid units per turn (using the Drive instruction directly)
-        let drive_instruction = Instruction::Drive(Operand::Value(0.5));
+        // In normalized system: 0.5 grid units = 0.1 normalized speed (0.5/5.0)
+        let drive_instruction = Instruction::Drive(Operand::Value(0.1));
         let processor = ComponentOperations::new();
         processor
             .process(
@@ -1101,7 +1126,8 @@ mod tests {
             )
             .unwrap();
 
-        // Expected velocity is 0.5 * UNIT_SIZE / CYCLES_PER_TURN coordinate units per cycle
+        // Expected velocity: 0.1 normalized speed * 5 grid units per turn = 0.5 grid units per turn
+        // 0.5 grid units per turn = 0.5 * UNIT_SIZE / CYCLES_PER_TURN coordinate units per cycle
         let expected_velocity = 0.5 * config::UNIT_SIZE / config::CYCLES_PER_TURN as f64;
 
         // Check if velocity was set correctly
@@ -1126,14 +1152,14 @@ mod tests {
         // Check that the robot moved ~0.025 coordinate units (0.5 grid units)
         let distance_moved = robot.position.x - start_x;
         println!(
-            "Fractional test: moved {} coordinate units ({} grid units) with drive 0.5",
+            "Fractional test: moved {} coordinate units ({} grid units) with drive 0.1",
             distance_moved,
             distance_moved / config::UNIT_SIZE
         );
 
         assert!(
             (distance_moved - 0.5 * config::UNIT_SIZE).abs() < 0.001,
-            "Robot should move {} coordinate units (0.5 grid units) per turn with drive 0.5, but moved {} coordinate units",
+            "Robot should move {} coordinate units (0.5 grid units) per turn with drive 0.1, but moved {} coordinate units",
             0.5 * config::UNIT_SIZE,
             distance_moved
         );
@@ -1146,6 +1172,7 @@ mod tests {
             String::new(),
             Point { x: 0.5, y: 0.5 },
             Point { x: 0.5, y: 0.5 },
+            None,
         );
         let arena = Arena::default();
         let mut command_queue = VecDeque::new();
@@ -1153,7 +1180,7 @@ mod tests {
         let program = parse_program(
             r#"
             select 1         ; select drive
-            drive 0.5        ; set velocity
+            drive 0.1        ; set velocity (0.1 normalized = 0.5 grid units per turn)
             select 2         ; select turret
             rotate 45.0      ; set turret rotation
         "#,
@@ -1205,6 +1232,7 @@ mod tests {
             String::new(),
             Point { x: 0.5, y: 0.5 },
             Point { x: 0.5, y: 0.5 },
+            None,
         );
         let arena = Arena::default();
         let mut command_queue = VecDeque::new();
@@ -1246,6 +1274,7 @@ mod tests {
             String::new(),
             Point { x: 0.5, y: 0.5 },
             Point { x: 0.5, y: 0.5 },
+            None,
         );
         let arena = Arena::default();
 
@@ -1274,7 +1303,13 @@ mod tests {
             x: arena.width / 2.0,
             y: arena.height / 2.0,
         };
-        let mut robot = Robot::new(0, "TestRobot".to_string(), Point { x: 0.5, y: 0.5 }, center);
+        let mut robot = Robot::new(
+            0,
+            "TestRobot".to_string(),
+            Point { x: 0.5, y: 0.5 },
+            center,
+            None,
+        );
         let mut command_queue = VecDeque::new();
 
         // Set up robot state
@@ -1359,9 +1394,10 @@ mod tests {
         // We need the executor to process the instruction
         let executor = vm::executor::InstructionExecutor::new();
 
-        // --- Test setting velocity to 1.0 ---
-        let target_grid_velocity = 1.0;
-        let drive_instr = Instruction::Drive(Operand::Value(target_grid_velocity));
+        // --- Test setting velocity to 1.0 grid unit per turn (normalized speed 0.2) ---
+        let normalized_speed = 0.2; // 0.2 normalized = 1.0 grid unit per turn
+        let target_grid_velocity = normalized_speed * config::MAX_DRIVE_UNITS_PER_TURN; // 0.2 * 5.0 = 1.0
+        let drive_instr = Instruction::Drive(Operand::Value(normalized_speed));
 
         // Explicitly select the Drive component (ID 1) before executing
         robot
@@ -1369,10 +1405,10 @@ mod tests {
             .set_selected_component(1)
             .expect("Failed to select drive component");
 
-        // Execute the Drive(1.0) instruction
+        // Execute the Drive(0.2) instruction
         executor
             .execute_instruction(&mut robot, &[], &arena, &drive_instr, &mut command_queue)
-            .expect("Drive(1.0) instruction execution failed");
+            .expect("Drive(0.2) instruction execution failed");
 
         // Calculate the expected velocity in coordinate units per cycle
         let expected_coord_velocity_per_cycle =
@@ -1414,6 +1450,7 @@ mod tests {
             "Test".to_string(),
             Point { x: 0.5, y: 0.5 },
             Point { x: 0.5, y: 0.5 },
+            None,
         );
         let arena = Arena::new();
         // Add a simple program if needed, e.g., MOV D0, 10

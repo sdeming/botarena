@@ -127,7 +127,13 @@ mod tests {
             x: arena.width / 2.0,
             y: arena.height / 2.0,
         };
-        let mut robot = Robot::new(0, "TestRobot".to_string(), Point { x: 0.5, y: 0.5 }, center);
+        let mut robot = Robot::new(
+            0,
+            "TestRobot".to_string(),
+            Point { x: 0.5, y: 0.5 },
+            center,
+            None,
+        );
         let command_queue = VecDeque::new();
 
         // Initialize registers for testing
@@ -352,7 +358,13 @@ mod tests {
             x: arena.width / 2.0,
             y: arena.height / 2.0,
         }; // Calculate center
-        let mut robot = Robot::new(1, "TestRobot".to_string(), Point { x: 0.0, y: 0.0 }, center); // Pass center
+        let mut robot = Robot::new(
+            1,
+            "TestRobot".to_string(),
+            Point { x: 0.0, y: 0.0 },
+            center,
+            None,
+        ); // Pass center
         let empty_robots = Vec::new();
         let executor = InstructionExecutor::new();
 

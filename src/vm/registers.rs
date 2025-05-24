@@ -30,6 +30,7 @@ pub enum Register {
     // Special registers
     Result,
     Fault,
+    Dbg, // Debug register for tracking debug values
     // Memory index register
     Index,
     // State registers (read-only)
@@ -46,11 +47,8 @@ pub enum Register {
     PosY,
     ForwardDistance,
     BackwardDistance,
-    // Weapon state registers (read-only)
-    WeaponPower,     // Current power level for weapons
-    WeaponCooldown,  // Cooldown remaining for weapons
-    TargetDistance,  // Last detected target distance
-    TargetDirection, // Last detected target angle
+    TargetDistance,
+    TargetDirection,
 }
 
 impl Register {
@@ -80,6 +78,7 @@ impl Register {
                 | Register::C
                 | Register::Result
                 | Register::Fault
+                | Register::Dbg // Debug register is writable
                 | Register::Index // Added Index register
         )
     }
@@ -94,12 +93,12 @@ impl Register {
 #[derive(Debug, Clone)]
 pub struct Registers {
     // All registers as f64 (except @c, which is i64 internally)
-    data: [f64; 42], // Increased size from 41 to 42 for Index
+    data: [f64; 43], // Increased size from 42 to 43 for Dbg
 }
 
 impl Registers {
     pub fn new() -> Self {
-        Registers { data: [0.0; 42] } // Update size
+        Registers { data: [0.0; 43] }
     }
 
     /// Get the index for a register in the data array
@@ -124,28 +123,27 @@ impl Registers {
             D15 => 15,
             D16 => 16,
             D17 => 17,
-            D18 => 18,              // Added D10-D18 indices
-            C => 19,                // Shifted C
-            Result => 20,           // Shifted Result
-            Fault => 21,            // Shifted Fault
-            Index => 22,            // New Index register
-            Turn => 23,             // Shifted Turn
-            Cycle => 24,            // Shifted Cycle
-            Rand => 25,             // Shifted Rand
-            Health => 26,           // Shifted Health
-            Power => 27,            // Shifted Power
-            Component => 28,        // Shifted Component
-            TurretDirection => 29,  // Shifted TurretDirection
-            DriveDirection => 30,   // Shifted DriveDirection
-            DriveVelocity => 31,    // Shifted DriveVelocity
-            PosX => 32,             // Shifted PosX
-            PosY => 33,             // Shifted PosY
-            ForwardDistance => 34,  // Shifted ForwardDistance
-            BackwardDistance => 35, // Shifted BackwardDistance
-            WeaponPower => 36,      // Shifted WeaponPower
-            WeaponCooldown => 37,   // Shifted WeaponCooldown
-            TargetDistance => 38,   // Shifted TargetDistance
-            TargetDirection => 39,  // Shifted TargetAngle
+            D18 => 18,
+            C => 19,
+            Result => 20,
+            Fault => 21,
+            Dbg => 22,
+            Index => 23,
+            Turn => 24,
+            Cycle => 25,
+            Rand => 26,
+            Health => 27,
+            Power => 28,
+            Component => 29,
+            TurretDirection => 30,
+            DriveDirection => 31,
+            DriveVelocity => 32,
+            PosX => 33,
+            PosY => 34,
+            ForwardDistance => 35,
+            BackwardDistance => 36,
+            TargetDistance => 37,
+            TargetDirection => 38,
         }
     }
 
@@ -274,14 +272,6 @@ mod tests {
             Err(RegisterError::ReadOnlyRegister)
         );
         assert_eq!(
-            regs.set(Register::WeaponPower, 1.0),
-            Err(RegisterError::ReadOnlyRegister)
-        );
-        assert_eq!(
-            regs.set(Register::WeaponCooldown, 1.0),
-            Err(RegisterError::ReadOnlyRegister)
-        );
-        assert_eq!(
             regs.set(Register::TargetDistance, 1.0),
             Err(RegisterError::ReadOnlyRegister)
         );
@@ -294,7 +284,7 @@ mod tests {
     #[test]
     fn test_internal_set_works() {
         let mut regs = Registers::new();
-        for i in 0..39 {
+        for i in 0..37 {
             // Find a register that maps to this index (a bit hacky, assumes contiguous)
             // This is just for testing internal_set, not a robust way to iterate registers
             let reg = match i {
@@ -333,12 +323,10 @@ mod tests {
                 32 => Register::PosY,
                 33 => Register::ForwardDistance,
                 34 => Register::BackwardDistance,
-                35 => Register::WeaponPower,
-                36 => Register::WeaponCooldown,
-                37 => Register::TargetDistance,
-                38 => Register::TargetDirection,
+                35 => Register::TargetDistance,
+                36 => Register::TargetDirection,
                 _ => panic!(
-                    "Index out of bounds for register mapping in test ({} / 39)",
+                    "Index out of bounds for register mapping in test ({} / 37)",
                     i
                 ),
             };

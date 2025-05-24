@@ -42,12 +42,20 @@ impl InstructionProcessor for MiscellaneousOperations {
                 // Get the value to debug from the operand
                 let val = op.get_value(&robot.vm_state)?;
 
-                // Log the debug value
+                // Set the @dbg register to the debug value
+                robot
+                    .vm_state
+                    .registers
+                    .set_internal(crate::vm::registers::Register::Dbg, val)
+                    .unwrap();
+
+                // Log the debug value with @dbg value included
                 crate::debug_instructions!(
                     robot.id,
                     robot.vm_state.turn,
                     robot.vm_state.cycle,
-                    "DBG instruction: {}",
+                    "DBG instruction: {} (@dbg={})",
+                    val,
                     val
                 );
 
@@ -86,7 +94,13 @@ mod tests {
             x: arena.width / 2.0,
             y: arena.height / 2.0,
         };
-        let robot = Robot::new(1, "TestRobot".to_string(), Point { x: 0.5, y: 0.5 }, center);
+        let robot = Robot::new(
+            1,
+            "TestRobot".to_string(),
+            Point { x: 0.5, y: 0.5 },
+            center,
+            None,
+        );
         let command_queue = VecDeque::new();
         (robot, arena, command_queue)
     }

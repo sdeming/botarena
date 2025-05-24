@@ -297,7 +297,13 @@ mod tests {
             x: arena.width / 2.0,
             y: arena.height / 2.0,
         };
-        let mut robot = Robot::new(0, "TestRobot".to_string(), Point { x: 0.5, y: 0.5 }, center);
+        let mut robot = Robot::new(
+            0,
+            "TestRobot".to_string(),
+            Point { x: 0.5, y: 0.5 },
+            center,
+            None,
+        );
         let command_queue = VecDeque::new();
 
         // Initialize the result register for conditional jumps
@@ -315,8 +321,13 @@ mod tests {
             x: arena.width / 2.0,
             y: arena.height / 2.0,
         };
-        let robot = Robot::new(0, "TestRobot".to_string(), Point { x: 0.0, y: 0.0 }, center);
-        // robot.vm_state.sp = 1024; // TODO: SP access needs update if required
+        let robot = Robot::new(
+            0,
+            "TestRobot".to_string(),
+            Point { x: 0.0, y: 0.0 },
+            center,
+            None,
+        );
         let command_queue = VecDeque::new();
         (robot, arena, command_queue)
     }

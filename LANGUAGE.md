@@ -134,13 +134,12 @@ An important concept in the VM is that each instruction has a specific "cycle co
 - **Basic Operations** (push, pop, mov, stack operations): 1 cycle
 - **Math Operations** (pow, sqrt, trigonometric functions): 2 cycles
 - **Component Operations**:
-  - `rotate`: 3 cycles
-  - `drive`: 2 cycles
+  - `rotate`: 2 cycles
+  - `drive`: 1 cycle
   - `fire`: 3 cycles
   - `scan`: 3 cycles
-  - `attack`: 5 cycles
 - **Control Flow**:
-  - `call` and `ret`: 3 cycles
+  - `call` and `ret`: 2 cycles
   - Jump instructions: 1 cycle
 
 This means a complex instruction like `fire` will take 3 simulation cycles to complete before the VM moves on to the next instruction. During this time, other robots will continue executing their own instructions.
@@ -159,7 +158,7 @@ Example:
 start:                ; Label
     mov @d0 0.0       ; Initialize @d0 to 0 (1 cycle)
     select 1          ; Select drive component (1 cycle)
-    drive MAX_SPEED   ; Set drive speed using constant (2 cycles)
+    drive MAX_SPEED   ; Set drive speed using constant (1 cycle) - max speed = 5 grid units/turn
     jmp start         ; Jump back to start (1 cycle)
 ```
 
@@ -185,48 +184,46 @@ Registers are special storage locations that hold data values. The VM has severa
 ### General Purpose Data Registers
 These registers can be both read from and written to for general-purpose storage:
 
-| Register | Description | Read/Write |
-|----------|-------------|------------|
-| `@d0` - `@d18` | General purpose data registers | Read/Write |
-| `@c` | Counter register (used with `loop` instruction) | Read/Write |
-| `@index` | Memory index register (used with `lod` and `sto` instructions) | Read/Write |
+| Register       | Description                                                    | Read/Write |
+|----------------|----------------------------------------------------------------|------------|
+| `@d0` - `@d18` | General purpose data registers                                 | Read/Write |
+| `@c`           | Counter register (used with `loop` instruction)                | Read/Write |
+| `@index`       | Memory index register (used with `lod` and `sto` instructions) | Read/Write |
 
 ### Status Registers
 These provide information about the VM state:
 
-| Register | Description | Read/Write |
-|----------|-------------|------------|
-| `@result` | Result of the last `cmp` operation | Read/Write |
-| `@fault` | Error code if a VM fault occurs | Read-only |
-| `@turn` | Current simulation turn number | Read-only |
-| `@cycle` | Current execution cycle within the turn | Read-only |
-| `@rand` | Random value between 0.0 and 1.0 | Read-only |
+| Register  | Description                             | Read/Write |
+|-----------|-----------------------------------------|------------|
+| `@result` | Result of the last `cmp` operation      | Read/Write |
+| `@fault`  | Error code if a VM fault occurs         | Read-only  |
+| `@turn`   | Current simulation turn number          | Read-only  |
+| `@cycle`  | Current execution cycle within the turn | Read-only  |
+| `@rand`   | Random value between 0.0 and 1.0        | Read-only  |
 
 ### Robot Status Registers
 These provide information about the robot's current state:
 
-| Register | Description | Read/Write |
-|----------|-------------|------------|
-| `@health` | Current health points | Read-only |
-| `@power` | Current energy/power level | Read-only |
-| `@posx` / `@pos_x` | Robot's X coordinate | Read-only |
-| `@posy` / `@pos_y` | Robot's Y coordinate | Read-only |
-| `@component` | ID of currently selected component | Read-only (set only by `select`/`deselect` instructions) |
+| Register           | Description                        | Read/Write                                               |
+|--------------------|------------------------------------|----------------------------------------------------------|
+| `@health`          | Current health points              | Read-only                                                |
+| `@power`           | Current energy/power level         | Read-only                                                |
+| `@posx` / `@pos_x` | Robot's X coordinate               | Read-only                                                |
+| `@posy` / `@pos_y` | Robot's Y coordinate               | Read-only                                                |
+| `@component`       | ID of currently selected component | Read-only (set only by `select`/`deselect` instructions) |
 
 ### Component Status Registers
 These provide information about the currently selected component:
 
-| Register | Description | Read/Write |
-|----------|-------------|------------|
-| `@drive_direction` | Direction the drive component is facing (degrees) | Read-only |
-| `@drive_velocity` | Speed the drive component is moving at (units/cycle) | Read-only |
-| `@turret_direction` | Direction the selected turret is facing (degrees) | Read-only |
-| `@forward_distance` | Distance to obstacle in front of the drive | Read-only |
-| `@backward_distance` | Distance to obstacle behind the drive | Read-only |
-| `@weapon_power` | Power setting of the selected weapon | Read-only |
-| `@weapon_cooldown` | Remaining cooldown cycles for the selected weapon | Read-only |
-| `@target_distance` | Distance to the last detected target from the selected scanner | Read-only |
-| `@target_direction` | Absolute angle to the last detected target from the selected scanner (degrees) | Read-only |
+| Register             | Description                                                                    | Read/Write |
+|----------------------|--------------------------------------------------------------------------------|------------|
+| `@drive_direction`   | Direction the drive component is facing (degrees)                              | Read-only  |
+| `@drive_velocity`    | Speed the drive component is moving at (units/cycle)                           | Read-only  |
+| `@turret_direction`  | Direction the selected turret is facing (degrees)                              | Read-only  |
+| `@forward_distance`  | Distance to obstacle in front of the drive                                     | Read-only  |
+| `@backward_distance` | Distance to obstacle behind the drive                                          | Read-only  |
+| `@target_distance`   | Distance to the last detected target from the selected scanner                 | Read-only  |
+| `@target_direction`  | Absolute angle to the last detected target from the selected scanner (degrees) | Read-only  |
 
 ## Instructions
 
@@ -290,29 +287,29 @@ flowchart TD
 
 ### Stack Operations
 
-| Instruction | Description | Operands | VM Cycle Cost | Stack/Register Effects |
-|-------------|-------------|----------|---------------|------------------------|
-| `push <operand>` | Push a value onto the stack | Value or register | 1 | Stack: +1 item |
-| `pop <register>` | Pop a value from stack into register | Register | 1 | Stack: -1 item, Register: written |
-| `pop` | Pop and discard value from stack | None | 1 | Stack: -1 item |
-| `dup` | Duplicate top value on stack | None | 1 | Stack: +1 item (copy of top) |
-| `swap` | Swap top two values on stack | None | 1 | Stack: rearranged |
+| Instruction      | Description                          | Operands          | VM Cycle Cost | Stack/Register Effects            |
+|------------------|--------------------------------------|-------------------|---------------|-----------------------------------|
+| `push <operand>` | Push a value onto the stack          | Value or register | 1             | Stack: +1 item                    |
+| `pop <register>` | Pop a value from stack into register | Register          | 1             | Stack: -1 item, Register: written |
+| `pop`            | Pop and discard value from stack     | None              | 1             | Stack: -1 item                    |
+| `dup`            | Duplicate top value on stack         | None              | 1             | Stack: +1 item (copy of top)      |
+| `swap`           | Swap top two values on stack         | None              | 1             | Stack: rearranged                 |
 
 ### Register Operations
 
-| Instruction | Description | Operands | VM Cycle Cost | Stack/Register Effects |
-|-------------|-------------|----------|---------------|------------------------|
-| `mov <register> <operand>` | Copy value to register | Register, Value/Register | 1 | Register: written |
-| `cmp <operand1> <operand2>` | Compare values, store result | Two values/registers | 1 | `@result`: written |
+| Instruction                 | Description                  | Operands                 | VM Cycle Cost | Stack/Register Effects |
+|-----------------------------|------------------------------|--------------------------|---------------|------------------------|
+| `mov <register> <operand>`  | Copy value to register       | Register, Value/Register | 1             | Register: written      |
+| `cmp <operand1> <operand2>` | Compare values, store result | Two values/registers     | 1             | `@result`: written     |
 
 ### Memory Operations
 
 Memory operations allow your robot to store and retrieve values from a memory array, providing more storage beyond the limited number of registers. The VM maintains a 1024-element memory array that persists throughout program execution.
 
-| Instruction | Description | Operands | VM Cycle Cost | Register Effects |
-|-------------|-------------|----------|---------------|------------------|
-| `lod <register>` | Load value from memory at `@index` position into register | Register | 1 | `@index`: auto-incremented, Register: written |
-| `sto <operand>` | Store value to memory at `@index` position | Value/Register | 1 | `@index`: auto-incremented |
+| Instruction      | Description                                               | Operands       | VM Cycle Cost | Register Effects                              |
+|------------------|-----------------------------------------------------------|----------------|---------------|-----------------------------------------------|
+| `lod <register>` | Load value from memory at `@index` position into register | Register       | 1             | `@index`: auto-incremented, Register: written |
+| `sto <operand>`  | Store value to memory at `@index` position                | Value/Register | 1             | `@index`: auto-incremented                    |
 
 Memory access is controlled via the `@index` register, which points to the current memory location (0-1023). Both `lod` and `sto` operations automatically increment `@index` after execution, making it convenient to work with consecutive memory locations.
 
@@ -360,37 +357,37 @@ Basic arithmetic operations (`add`, `sub`, `mul`, `div`, `mod`) also have an alt
   - Example: `add @d0 5` -> `@result` = value of `@d0` + 5. The stack is unchanged.
   - Example: `sub 10 @d1` -> `@result` = 10 - value of `@d1`. The stack is unchanged.
 
-| Instruction | Description (Stack Form) | Operands (Stack Form) | Stack Effect (Stack Form) | Operands (Operand Form) | Effect (Operand Form) | VM Cycle Cost |
-|-------------|----------------------------|-----------------------|---------------------------|-------------------------|-------------------------|---------------|
-| `add`       | Add top two values         | None                  | -2, +1 items              | `<op1> <op2>`           | `@result` = op1 + op2   | 1             |
-| `sub`       | Subtract top from second   | None                  | -2, +1 items              | `<op1> <op2>`           | `@result` = op1 - op2   | 1             |
-| `mul`       | Multiply top two values    | None                  | -2, +1 items              | `<op1> <op2>`           | `@result` = op1 * op2   | 1             |
-| `div`       | Divide second by top       | None                  | -2, +1 items              | `<op1> <op2>`           | `@result` = op1 / op2   | 1             |
-| `mod`       | Modulo (remainder)         | None                  | -2, +1 items              | `<op1> <op2>`           | `@result` = op1 % op2   | 1             |
-| `divmod`    | Divide and return both quotient and remainder | None | 1 | -2, +2 items | N/A | N/A | 1 |
-| `pow`       | Exponentiation             | None                  | -2, +1 items              | `<base> <exp>`          | `@result` = base ^ exp  | 2             |
-| `sqrt`      | Square root of top value   | None                  | -1, +1 items              | `<value>`               | `@result` = sqrt(value) | 2             |
-| `log`       | Natural logarithm          | None                  | -1, +1 items              | `<value>`               | `@result` = ln(value)   | 2             |
-| `sin`       | Sine (degrees)             | None                  | -1, +1 items              | `<degrees>`             | `@result` = sin(degrees)| 2             |
-| `cos`       | Cosine (degrees)           | None                  | -1, +1 items              | `<degrees>`             | `@result` = cos(degrees)| 2             |
-| `tan`       | Tangent (degrees)          | None                  | -1, +1 items              | `<degrees>`             | `@result` = tan(degrees)| 2             |
-| `asin`      | Arc sine (result degrees)  | None                  | -1, +1 items              | `<value>`               | `@result` = asin(value) | 2             |
-| `acos`      | Arc cosine (result degrees)| None                  | -1, +1 items              | `<value>`               | `@result` = acos(value) | 2             |
-| `atan`      | Arc tangent (result degrees)| None                 | -1, +1 items              | `<value>`               | `@result` = atan(value) | 2             |
-| `atan2`     | Two-arg arc tan (result deg)| None                | -2, +1 items              | `<y> <x>`               | `@result` = atan2(y, x)| 2             |
-| `abs`       | Absolute value             | None                  | -1, +1 items              | `<value>`               | `@result` = abs(value)  | 1             |
+| Instruction | Description (Stack Form)                      | Operands (Stack Form) | Stack Effect (Stack Form) | Operands (Operand Form) | Effect (Operand Form)    | VM Cycle Cost |
+|-------------|-----------------------------------------------|-----------------------|---------------------------|-------------------------|--------------------------|---------------|
+| `add`       | Add top two values                            | None                  | -2, +1 items              | `<op1> <op2>`           | `@result` = op1 + op2    | 1             |
+| `sub`       | Subtract top from second                      | None                  | -2, +1 items              | `<op1> <op2>`           | `@result` = op1 - op2    | 1             |
+| `mul`       | Multiply top two values                       | None                  | -2, +1 items              | `<op1> <op2>`           | `@result` = op1 * op2    | 1             |
+| `div`       | Divide second by top                          | None                  | -2, +1 items              | `<op1> <op2>`           | `@result` = op1 / op2    | 1             |
+| `mod`       | Modulo (remainder)                            | None                  | -2, +1 items              | `<op1> <op2>`           | `@result` = op1 % op2    | 1             |
+| `divmod`    | Divide and return both quotient and remainder | None                  | 1                         | -2, +2 items            | N/A                      | N/A           | 1 |
+| `pow`       | Exponentiation                                | None                  | -2, +1 items              | `<base> <exp>`          | `@result` = base ^ exp   | 2             |
+| `sqrt`      | Square root of top value                      | None                  | -1, +1 items              | `<value>`               | `@result` = sqrt(value)  | 2             |
+| `log`       | Natural logarithm                             | None                  | -1, +1 items              | `<value>`               | `@result` = ln(value)    | 2             |
+| `sin`       | Sine (degrees)                                | None                  | -1, +1 items              | `<degrees>`             | `@result` = sin(degrees) | 2             |
+| `cos`       | Cosine (degrees)                              | None                  | -1, +1 items              | `<degrees>`             | `@result` = cos(degrees) | 2             |
+| `tan`       | Tangent (degrees)                             | None                  | -1, +1 items              | `<degrees>`             | `@result` = tan(degrees) | 2             |
+| `asin`      | Arc sine (result degrees)                     | None                  | -1, +1 items              | `<value>`               | `@result` = asin(value)  | 2             |
+| `acos`      | Arc cosine (result degrees)                   | None                  | -1, +1 items              | `<value>`               | `@result` = acos(value)  | 2             |
+| `atan`      | Arc tangent (result degrees)                  | None                  | -1, +1 items              | `<value>`               | `@result` = atan(value)  | 2             |
+| `atan2`     | Two-arg arc tan (result deg)                  | None                  | -2, +1 items              | `<y> <x>`               | `@result` = atan2(y, x)  | 2             |
+| `abs`       | Absolute value                                | None                  | -1, +1 items              | `<value>`               | `@result` = abs(value)   | 1             |
 
 ### Binary Operations
 These operations perform bitwise manipulations by first converting float values to 32-bit unsigned integers:
 
-| Instruction | Description | Operands | VM Cycle Cost | Stack Effect |
-|-------------|-------------|----------|---------------|--------------|
-| `and`       | Bitwise AND of top two values | None | 1 | -2, +1 items |
-| `or`        | Bitwise OR of top two values | None | 1 | -2, +1 items |
-| `xor`       | Bitwise XOR of top two values | None | 1 | -2, +1 items |
-| `not`       | Bitwise NOT of top value | None | 1 | -1, +1 items |
-| `shl`       | Shift left value by specified bits | None | 1 | -2, +1 items |
-| `shr`       | Shift right value by specified bits | None | 1 | -2, +1 items |
+| Instruction | Description                         | Operands | VM Cycle Cost | Stack Effect |
+|-------------|-------------------------------------|----------|---------------|--------------|
+| `and`       | Bitwise AND of top two values       | None     | 1             | -2, +1 items |
+| `or`        | Bitwise OR of top two values        | None     | 1             | -2, +1 items |
+| `xor`       | Bitwise XOR of top two values       | None     | 1             | -2, +1 items |
+| `not`       | Bitwise NOT of top value            | None     | 1             | -1, +1 items |
+| `shl`       | Shift left value by specified bits  | None     | 1             | -2, +1 items |
+| `shr`       | Shift right value by specified bits | None     | 1             | -2, +1 items |
 
 For binary operations, the VM:
 1. Pops the required number of values from the stack (1 for `not`, 2 for others)
@@ -413,14 +410,14 @@ Binary operations also have an alternative form with operands:
   - Example: `and @d0 5` -> `@result` = value of `@d0` & 5 (as u32). The stack is unchanged.
   - Example: `shl @d0 2` -> `@result` = value of `@d0` << 2 (shifted left 2 bits). The stack is unchanged.
 
-| Instruction | Description (Operand Form) | Operands | VM Cycle Cost | Effect |
-|-------------|----------------------------|----------|---------------|--------|
-| `and <op1> <op2>` | Bitwise AND of two operands | Two values/registers | 1 | `@result` = op1 & op2 |
-| `or <op1> <op2>` | Bitwise OR of two operands | Two values/registers | 1 | `@result` = op1 \| op2 |
-| `xor <op1> <op2>` | Bitwise XOR of two operands | Two values/registers | 1 | `@result` = op1 ^ op2 |
-| `not <op>` | Bitwise NOT of operand | Value/register | 1 | `@result` = ~op |
-| `shl <op1> <op2>` | Shift op1 left by op2 bits | Two values/registers | 1 | `@result` = op1 << op2 |
-| `shr <op1> <op2>` | Shift op1 right by op2 bits | Two values/registers | 1 | `@result` = op1 >> op2 |
+| Instruction       | Description (Operand Form)  | Operands             | VM Cycle Cost | Effect                 |
+|-------------------|-----------------------------|----------------------|---------------|------------------------|
+| `and <op1> <op2>` | Bitwise AND of two operands | Two values/registers | 1             | `@result` = op1 & op2  |
+| `or <op1> <op2>`  | Bitwise OR of two operands  | Two values/registers | 1             | `@result` = op1 \| op2 |
+| `xor <op1> <op2>` | Bitwise XOR of two operands | Two values/registers | 1             | `@result` = op1 ^ op2  |
+| `not <op>`        | Bitwise NOT of operand      | Value/register       | 1             | `@result` = ~op        |
+| `shl <op1> <op2>` | Shift op1 left by op2 bits  | Two values/registers | 1             | `@result` = op1 << op2 |
+| `shr <op1> <op2>` | Shift op1 right by op2 bits | Two values/registers | 1             | `@result` = op1 >> op2 |
 
 Example using binary operations:
 ```asm
@@ -453,18 +450,18 @@ mov @d3 @result  ; Update @d3 with the shifted value
 
 ### Control Flow
 
-| Instruction | Description | Operands | VM Cycle Cost | Effect |
-|-------------|-------------|----------|---------------|--------|
-| `jmp <label>` | Unconditional jump | Label | 1 | IP = label position |
-| `jz <label>` / `je <label>` | Jump if `@result` == 0 | Label | 1 | Conditional IP change |
-| `jnz <label>` / `jne <label>` | Jump if `@result` != 0 | Label | 1 | Conditional IP change |
-| `jl <label>` | Jump if `@result` < 0 | Label | 1 | Conditional IP change |
-| `jle <label>` | Jump if `@result` <= 0 | Label | 1 | Conditional IP change |
-| `jg <label>` | Jump if `@result` > 0 | Label | 1 | Conditional IP change |
-| `jge <label>` | Jump if `@result` >= 0 | Label | 1 | Conditional IP change |
-| `call <label>` | Call subroutine | Label | 3 | Push return address, IP = label |
-| `ret` | Return from subroutine | None | 3 | Pop return address, jump to it |
-| `loop <label>` | Decrement `@c`, jump if not zero | Label | 1 | `@c` -= 1, conditional jump |
+| Instruction                   | Description                      | Operands | VM Cycle Cost | Effect                          |
+|-------------------------------|----------------------------------|----------|---------------|---------------------------------|
+| `jmp <label>`                 | Unconditional jump               | Label    | 1             | IP = label position             |
+| `jz <label>` / `je <label>`   | Jump if `@result` == 0           | Label    | 1             | Conditional IP change           |
+| `jnz <label>` / `jne <label>` | Jump if `@result` != 0           | Label    | 1             | Conditional IP change           |
+| `jl <label>`                  | Jump if `@result` < 0            | Label    | 1             | Conditional IP change           |
+| `jle <label>`                 | Jump if `@result` <= 0           | Label    | 1             | Conditional IP change           |
+| `jg <label>`                  | Jump if `@result` > 0            | Label    | 1             | Conditional IP change           |
+| `jge <label>`                 | Jump if `@result` >= 0           | Label    | 1             | Conditional IP change           |
+| `call <label>`                | Call subroutine                  | Label    | 2             | Push return address, IP = label |
+| `ret`                         | Return from subroutine           | None     | 2             | Pop return address, jump to it  |
+| `loop <label>`                | Decrement `@c`, jump if not zero | Label    | 1             | `@c` -= 1, conditional jump     |
 
 ### Component Control
 
@@ -479,28 +476,45 @@ flowchart LR
     
     TURRET --> TURRET_OPS[Turret Operations]
     TURRET_OPS --> ROTATE_TURRET[rotate]
-    TURRET_OPS --> ATTACK[attack]
     TURRET_OPS --> FIRE[fire]
     TURRET_OPS --> SCAN[scan]
 ```
 
-| Instruction | Description | Operands | VM Cycle Cost | Required Component | Effect |
-|-------------|-------------|----------|---------------|-------------------|--------|
-| `select <operand>` | Select component by ID | Component ID or register | 1 | None | `@component` = component ID |
-| `deselect` | Deselect current component | None | 1 | None | `@component` = 0 |
-| `rotate <operand>` | Request rotation for selected component | Angle delta (degrees) | 3 | Any | Component begins rotating (applies to selected component) |
-| `drive <operand>` | Set drive velocity | Target velocity | 2 | Drive (ID 1) | Drive begins accelerating/decelerating |
-| `attack` | Perform melee attack | None | 5 | Turret (ID 2) | Initiates melee attack |
-| `fire <operand>` | Fire ranged weapon | Power level (0.0-1.0) | 3 | Turret (ID 2) | Fires projectile |
-| `scan` | Scan for targets | None | 3 | Turret (ID 2) | Updates `@target_distance` and `@target_angle` |
+| Instruction        | Description                             | Operands                 | VM Cycle Cost | Required Component | Effect                                                                             |
+|--------------------|-----------------------------------------|--------------------------|---------------|--------------------|------------------------------------------------------------------------------------|
+| `select <operand>` | Select component by ID                  | Component ID or register | 1             | None               | `@component` = component ID                                                        |
+| `deselect`         | Deselect current component              | None                     | 1             | None               | `@component` = 0                                                                   |
+| `rotate <operand>` | Request rotation for selected component | Angle delta (degrees)    | 2             | Any                | Component begins rotating (applies to selected component)                          |
+| `drive <operand>`  | Set drive velocity                      | Target velocity          | 1             | Drive (ID 1)       | Drive begins accelerating/decelerating                                             |
+| `fire <operand>`   | Fire ranged weapon                      | Power level (0.0-1.0)    | 3             | Turret (ID 2)      | Fires projectile                                                                   |
+| `scan`             | Scan for targets                        | None                     | 3             | Turret (ID 2)      | Updates `@target_distance` and `@target_angle`                                     |
+
+### Drive Speed System
+
+The `drive` instruction uses a **normalized speed system** ranging from 0.0 to 1.0:
+
+- **0.0**: No movement (stopped)
+- **0.2**: 20% of max speed = 1.0 grid unit per turn
+- **0.5**: 50% of max speed = 2.5 grid units per turn  
+- **1.0**: 100% of max speed = 5.0 grid units per turn (25% of arena width)
+
+**Speed Examples:**
+```asm
+drive 0.0    ; Stop
+drive 0.2    ; Slow movement (1 grid unit/turn) 
+drive 0.5    ; Medium movement (2.5 grid units/turn)
+drive 1.0    ; Maximum movement (5 grid units/turn)
+```
+
+Since the arena is 20×20 grid units, a speed of 1.0 allows the robot to cross 25% of the arena in one turn. Speed values above 1.0 are automatically clamped to 1.0, and negative values work for reverse movement.
 
 ### Miscellaneous
 
-| Instruction | Description | Operands | VM Cycle Cost | Effect |
-|-------------|-------------|----------|---------------|--------|
-| `nop` | No operation | None | 1 | None (wastes a cycle) |
-| `dbg <operand>` | Print debug value | Value or register | 1 | Outputs value to console |
-| `sleep <cycles>` | Pause execution for the given number of cycles | Value, register, or constant | cycles | Pauses execution for the specified number of cycles |
+| Instruction      | Description                                    | Operands                     | VM Cycle Cost | Effect                                                                   |
+|------------------|------------------------------------------------|------------------------------|---------------|--------------------------------------------------------------------------|
+| `nop`            | No operation                                   | None                         | 1             | None (wastes a cycle)                                                    |
+| `dbg <operand>`  | Print debug value                              | Value or register            | 1             | Outputs value to console                                                 |
+| `sleep <cycles>` | Pause execution for the given number of cycles | Value, register, or constant | variable      | Pauses execution for the specified number of cycles; cost is the operand |
 
 ## Constants
 
@@ -542,8 +556,46 @@ The following constants are predefined and available to all robot programs:
 
 | Constant | Value | Description |
 |----------|-------|-------------|
-| `ARENA_WIDTH` | Width of arena | Total width of the arena grid (typically 20.0) |
-| `ARENA_HEIGHT` | Height of arena | Total height of the arena grid (typically 15.0) |
+| `ARENA_WIDTH` | 20.0 | Total width of the arena in grid units |
+| `ARENA_HEIGHT` | 20.0 | Total height of the arena in grid units |
+
+### Arena Coordinate System
+
+The Bot Arena uses a dual coordinate system that's important to understand:
+
+**Coordinate Units (0.0 → 1.0):**
+- The arena spans from 0.0 to 1.0 in both X and Y dimensions
+- Robot position registers (`@posx`, `@posy`) return values in this range
+- Internal physics calculations use coordinate units
+
+**Grid Units (0 → 20):**
+- The arena is divided into a 20×20 grid of tiles
+- Each grid unit represents 5% (0.05) of the arena's width and height
+- Constants `ARENA_WIDTH` and `ARENA_HEIGHT` are expressed in grid units
+- Movement speeds and distances are typically expressed in grid units
+
+**Conversion:**
+- 1 grid unit = 0.05 coordinate units
+- 20 grid units = 1.0 coordinate unit (full arena dimension)
+- Robot at position (10, 10) in grid units = (0.5, 0.5) in coordinate units (center)
+
+**Example:**
+```asm
+; Drive at 1 grid unit per turn (5% of arena width)
+drive 1.0
+
+; Current position in coordinate units (0.0-1.0 range)
+mov @d0 @posx    ; e.g., 0.25 = 25% across the arena
+mov @d1 @posy    ; e.g., 0.75 = 75% down the arena
+
+; Convert coordinate units to grid units for logic
+mul @d0 ARENA_WIDTH  ; @result = 0.25 * 20 = 5.0 (grid unit X)
+mov @d2 @result
+mul @d1 ARENA_HEIGHT ; @result = 0.75 * 20 = 15.0 (grid unit Y) 
+mov @d3 @result
+```
+
+The rendering system scales these coordinates to the actual pixel dimensions of the display, but this is transparent to the robot programs.
 
 ## Stack Operations
 
@@ -584,15 +636,14 @@ Robots have two main components, each with different capabilities:
 
 2. **Turret** (ID 2): Controls weapons and scanning
    - `rotate`: Change direction
-   - `attack`: Melee attack
-   - `fire`: Range attack
+   - `fire`: Fire projectile
    - `scan`: Detect other robots
 
 Before using any component-specific instruction, you must first select the appropriate component using the `select` instruction:
 
 ```asm
 select 1       ; Select the drive component
-drive 0.5      ; Set drive velocity to 0.5 units/cycle
+drive 0.5      ; Set drive velocity to 50% of max speed (2.5 grid units/turn)
 rotate 45.0    ; Begin rotating the drive 45 degrees
 
 select 2       ; Select the turret component
@@ -614,7 +665,7 @@ This program makes the robot move in a square pattern:
 select DRIVE_ID             ; Select drive component
 
 start:
-    drive 2.0               ; Move forward
+    drive 0.4               ; Move forward at 40% speed (2 grid units/turn)
     sleep DRIVE_DELAY       ; Wait DRIVE_DELAY cycles
     drive 0.0               ; Stop
     rotate 90.0             ; Turn 90 degrees
@@ -666,7 +717,7 @@ start:
         ; Move in the direction specified by @d5
         select DRIVE_ID
         rotate @d5
-        drive 0.5
+        drive 0.1            ; Move at 10% speed (0.5 grid units/turn)
         
         ; Wait for movement to complete
         sleep 10
@@ -930,7 +981,7 @@ main_loop:
 zigzag:
     push @d4
     select DRIVE_ID
-    drive 0.5
+    drive 0.1            ; Move at 10% speed (0.5 grid units/turn)
     push @d0
     push 180.0
     mul

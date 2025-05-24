@@ -4,7 +4,9 @@ use crate::config::*;
 use crate::particles::ParticleSystem;
 use crate::robot::{Robot, RobotStatus};
 use crate::types::*;
+use ::rand::SeedableRng;
 use ::rand::prelude::*;
+use ::rand::rngs::StdRng;
 use macroquad::prelude::*;
 use macroquad::prelude::{ORANGE, SKYBLUE, Vec2, YELLOW};
 
@@ -42,9 +44,15 @@ impl Arena {
         }
     }
 
-    // Places obstacles randomly based on configured density
-    pub fn place_obstacles(&mut self) {
-        let mut rng = thread_rng();
+    // Places obstacles randomly based on configured density with optional seed for deterministic placement
+    pub fn place_obstacles_with_seed(&mut self, seed: Option<u64>) {
+        // Create RNG - either seeded or using thread_rng
+        let mut rng: Box<dyn RngCore> = if let Some(seed_value) = seed {
+            Box::new(StdRng::seed_from_u64(seed_value))
+        } else {
+            Box::new(thread_rng())
+        };
+
         let total_cells = self.grid_width * self.grid_height;
         let num_obstacles = (total_cells as f32 * OBSTACLE_DENSITY).floor() as u32;
 
@@ -390,11 +398,9 @@ impl Arena {
         }
     }
 
-    /// Adds an obstacle at the given robot's position (for wreckage)
-    pub fn add_obstacle_at_robot(&mut self, robot: &Robot) {
-        self.obstacles.push(Obstacle {
-            position: robot.position,
-        });
+    /// Adds an obstacle at the given position
+    pub fn add_obstacle_at_position(&mut self, position: Point) {
+        self.obstacles.push(Obstacle { position });
     }
 }
 
@@ -509,9 +515,21 @@ mod tests {
         let robot1_start = Point { x: 0.25, y: 0.5 };
         let robot2_start = Point { x: 0.75, y: 0.5 };
         let arena_center = Point { x: 0.5, y: 0.5 }; // Define center point
-        let mut robot1 = Robot::new(1, "TestRobot1".to_string(), robot1_start, arena_center);
+        let mut robot1 = Robot::new(
+            1,
+            "TestRobot1".to_string(),
+            robot1_start,
+            arena_center,
+            None,
+        );
         robot1.status = RobotStatus::Active; // Manually set active for test
-        let mut robot2 = Robot::new(2, "TestRobot2".to_string(), robot2_start, arena_center);
+        let mut robot2 = Robot::new(
+            2,
+            "TestRobot2".to_string(),
+            robot2_start,
+            arena_center,
+            None,
+        );
         robot2.status = RobotStatus::Active; // <-- Manually set status for test
         let mut particle_system = ParticleSystem::new(); // <-- Create dummy particle system
         let audio_manager = AudioManager::new(); // <-- Create dummy manager
@@ -602,7 +620,13 @@ mod tests {
         let mut arena = Arena::new();
         let robot1_start = Point { x: 0.5, y: 0.5 };
         let arena_center = Point { x: 0.5, y: 0.5 }; // Define center point
-        let mut robot1 = Robot::new(1, "TestRobot1".to_string(), robot1_start, arena_center);
+        let mut robot1 = Robot::new(
+            1,
+            "TestRobot1".to_string(),
+            robot1_start,
+            arena_center,
+            None,
+        );
         robot1.status = RobotStatus::Active; // Set active
         let mut particle_system = ParticleSystem::new(); // <-- Create dummy particle system
         let audio_manager = AudioManager::new(); // <-- Create dummy manager

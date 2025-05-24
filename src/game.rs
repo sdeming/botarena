@@ -21,6 +21,7 @@ pub struct Game {
     pub current_turn: u32,
     pub current_cycle: u32,
     pub max_turns: u32,
+    pub seed: Option<u64>, // Store the seed for deterministic operations
     time_accumulator: f32,
     cycle_duration: f32,
     game_over: bool,
@@ -33,6 +34,7 @@ impl Game {
         robot_files: &[String],
         max_turns: u32,
         audio_manager: AudioManager,
+        seed: Option<u64>,
     ) -> Result<Self, Box<dyn std::error::Error>> {
         // Create arena
         let arena = Arena::new();
@@ -56,6 +58,11 @@ impl Game {
         // Load robots
         let mut robots = Vec::with_capacity(num_robots);
         info!("Simulating for a maximum of {} turns.", max_turns);
+
+        // Log seed information
+        if let Some(seed_value) = seed {
+            info!("Using deterministic seed: {}", seed_value);
+        }
 
         // Define starting positions
         let offset = 2.0 * config::UNIT_SIZE;
@@ -109,7 +116,9 @@ impl Game {
             // Parse the program using the predefined constants
             match crate::vm::parser::parse_assembly(&program_content, Some(&predefined_constants)) {
                 Ok(parsed_program) => {
-                    let mut robot = Robot::new(robot_id, robot_name, position, center);
+                    // Create robot with seed if provided
+                    let robot_seed = seed.map(|s| s.wrapping_add(robot_id as u64));
+                    let mut robot = Robot::new(robot_id, robot_name, position, center, robot_seed);
                     robot.load_program(parsed_program);
                     robots.push(robot);
                 }
@@ -136,11 +145,19 @@ impl Game {
             current_turn: 1,
             current_cycle: 0,
             max_turns,
+            seed,
             time_accumulator: 0.0,
             cycle_duration: 1.0 / config::CYCLES_PER_TURN as f32,
             game_over: false,
             winner: None,
         })
+    }
+
+    /// Place obstacles in the arena using the stored seed for deterministic placement
+    pub fn place_obstacles(&mut self) {
+        // For obstacle placement, use a derived seed to avoid affecting robot RNG sequences
+        let obstacle_seed = self.seed.map(|s| s.wrapping_mul(31).wrapping_add(12345));
+        self.arena.place_obstacles_with_seed(obstacle_seed);
     }
 
     /// Run the main game loop using the provided renderer
@@ -328,16 +345,19 @@ impl Game {
         self.particle_system.update(self.cycle_duration);
 
         // --- Remove destroyed robots, add obstacles, check win/draw ---
-        // This block correctly calculates and uses its own `destroyed_robots`
-        let destroyed_robots: Vec<Robot> = self
+        // Collect positions of destroyed robots before removing them
+        let destroyed_robot_positions: Vec<Point> = self
             .robots
             .iter()
             .filter(|r| r.status == RobotStatus::Destroyed)
-            .cloned()
+            .map(|r| r.position)
             .collect();
-        for robot in &destroyed_robots {
-            self.arena.add_obstacle_at_robot(robot);
+
+        // Add obstacles at destroyed robot positions
+        for position in destroyed_robot_positions {
+            self.arena.add_obstacle_at_position(position);
         }
+
         // Remove destroyed robots from the robots vector
         self.robots.retain(|r| r.status != RobotStatus::Destroyed);
 
@@ -399,6 +419,59 @@ impl Game {
             }
         }
     }
+
+    /// Run headless simulation without graphics for fast testing
+    pub async fn run_simulation(&mut self) -> Result<(), Box<dyn std::error::Error>> {
+        info!("Starting headless simulation...");
+
+        while self.current_turn <= self.max_turns && !self.game_over {
+            // Run a full turn (all cycles)
+            for _ in 0..config::CYCLES_PER_TURN {
+                self.update_simulation();
+
+                // Break early if game ends mid-turn
+                if self.game_over {
+                    break;
+                }
+            }
+        }
+
+        // Report final results
+        let alive_robots: Vec<&Robot> = self
+            .robots
+            .iter()
+            .filter(|r| r.status != RobotStatus::Destroyed)
+            .collect();
+
+        match alive_robots.len() {
+            0 => info!(
+                "Simulation complete: DRAW - No survivors after {} turns",
+                self.current_turn - 1
+            ),
+            1 => {
+                let winner = alive_robots[0];
+                info!(
+                    "Simulation complete: {} WINS with {:.2} health after {} turns",
+                    winner.name,
+                    winner.health,
+                    self.current_turn - 1
+                );
+            }
+            _ => {
+                info!(
+                    "Simulation complete: {} survivors after {} turns:",
+                    alive_robots.len(),
+                    self.current_turn - 1
+                );
+                for robot in &alive_robots {
+                    info!("  {} - Health: {:.2}", robot.name, robot.health);
+                }
+            }
+        }
+
+        info!("Exiting headless simulation.");
+        Ok(())
+    }
 }
 
 #[cfg(test)]
@@ -411,7 +484,13 @@ mod tests {
     fn dummy_robot(id: u32, pos: Point, status: RobotStatus) -> Robot {
         // Use a default center for dummy robots in tests
         let center = Point { x: 0.5, y: 0.5 };
-        let mut robot = Robot::new(id, format!("TestRobot_{}", id).to_string(), pos, center);
+        let mut robot = Robot::new(
+            id,
+            format!("TestRobot_{}", id).to_string(),
+            pos,
+            center,
+            None,
+        );
         robot.status = status;
         robot
     }
@@ -429,6 +508,7 @@ mod tests {
             current_turn: 1,
             current_cycle: 0,
             max_turns: 10,
+            seed: None,
             time_accumulator: 0.0,
             cycle_duration: 1.0,
             game_over: false,
@@ -462,6 +542,7 @@ mod tests {
             current_turn: 1,
             current_cycle: 0,
             max_turns: 10,
+            seed: None,
             time_accumulator: 0.0,
             cycle_duration: 1.0,
             game_over: false,
@@ -480,6 +561,7 @@ mod tests {
             current_turn: 1,
             current_cycle: 0,
             max_turns: 10,
+            seed: None,
             time_accumulator: 0.0,
             cycle_duration: 1.0,
             game_over: false,

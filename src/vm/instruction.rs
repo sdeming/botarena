@@ -128,28 +128,14 @@ impl Instruction {
             // Control Flow / Subroutines
             Call(_) | Ret => 2,
 
-            // Dynamic Cost
-            Rotate(op) => {
-                match op {
-                    Operand::Value(angle) => 1 + (angle.abs() / 45.0).ceil() as u32,
-                    Operand::Register(reg) => {
-                        // Get value without mutation if possible, else use average
-                        if let Ok(angle) = vm_state.registers.get(*reg) {
-                            1 + (angle.abs() / 45.0).ceil() as u32
-                        } else {
-                            2 // Default/average if register read fails (shouldn't happen here)
-                        }
-                    }
-                }
-            }
+            // Component Operations
+            Rotate(_) => 2, // Fixed cost - just starts the rotation motor
 
             // 3 Cycles
             Fire(_) => 3,
+            Scan => 3, // Increased from 1 to 3 for better balance
 
-            // 1 Cycles
-            Scan => 1,
-
-            // 1 Cycles
+            // Dynamic Cost
             Sleep(op) => {
                 // Try to get the value from the operand, default to 1 if invalid
                 op.get_value(vm_state)

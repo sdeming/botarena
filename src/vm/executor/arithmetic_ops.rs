@@ -338,7 +338,13 @@ mod tests {
             x: arena.width / 2.0,
             y: arena.height / 2.0,
         };
-        let mut robot = Robot::new(0, "TestRobot".to_string(), Point { x: 0.5, y: 0.5 }, center);
+        let mut robot = Robot::new(
+            0,
+            "TestRobot".to_string(),
+            Point { x: 0.5, y: 0.5 },
+            center,
+            None,
+        );
         let command_queue = VecDeque::new();
 
         // Initialize registers for testing
@@ -808,8 +814,23 @@ mod tests {
             x: arena.width / 2.0,
             y: arena.height / 2.0,
         };
-        let mut robot = Robot::new(0, "TestRobot".to_string(), Point { x: 0.0, y: 0.0 }, center);
-        let robots = vec![robot.clone()];
+        let mut robot = Robot::new(
+            0,
+            "TestRobot".to_string(),
+            Point { x: 0.0, y: 0.0 },
+            center,
+            None,
+        );
+
+        // Create a separate robot for the robots vector (tests typically need this for the executor)
+        let other_robot = Robot::new(
+            1,
+            "OtherRobot".to_string(),
+            Point { x: 1.0, y: 1.0 },
+            center,
+            None,
+        );
+        let robots = vec![other_robot];
         let mut q = VecDeque::new();
         let executor = InstructionExecutor::new();
 

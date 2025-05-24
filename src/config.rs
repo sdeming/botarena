@@ -30,7 +30,8 @@ pub const DEFAULT_INITIAL_HEALTH: f64 = 100.0;
 pub const DEFAULT_INITIAL_POWER: f64 = 1.0;
 
 // Robot Physics/Movement Configuration
-pub const MAX_DRIVE_UNITS_PER_TURN: f64 = 5.0;
+pub const MAX_DRIVE_SPEED_NORMALIZED: f64 = 1.0; // Maximum normalized speed (0.0 to 1.0)
+pub const MAX_DRIVE_UNITS_PER_TURN: f64 = 5.0; // Actual grid units per turn at max speed
 pub const DRIVE_VELOCITY_FACTOR: f64 = UNIT_SIZE / CYCLES_PER_TURN as f64;
 pub const MAX_ROTATION_PER_CYCLE: f64 = 90.0 / CYCLES_PER_TURN as f64; // Degrees/cycle (scaled automatically, e.g., 3.6 deg/cycle for 100 cycles/turn)
 
