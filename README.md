@@ -56,6 +56,8 @@ Options:
       --debug-filter <DEBUG_FILTER>  Optional comma-separated list of targets for debug/trace logging
       --no-obstacles                 Whether to place obstacles in the arena
       --no-audio                     Disable sound effects
+      --seed <SEED>                  Random seed for deterministic simulation (u64)
+      --simulate                     Run simulation without graphics (headless mode for fast testing)
   -h, --help                         Print help
   -V, --version                      Print version
 ```
@@ -73,6 +75,8 @@ cargo run -- bots/chaos.rasm bots/jojo.rasm --turns=500 --log-level=debug --debu
 - **Log Levels:** Set with `--log-level` (off, error, warn, info, debug, trace).
 - **Debug Filters:** Use `--debug-filter` to restrict debug output to specific topics (e.g., `vm`, `robot`, `drive`, `weapon`, `scan`, `instructions`).
 - **Log Output:** All logs are printed to stdout. To capture logs for analysis:
+- **Simulate:** With the `--simulate` flag the game will run as fast as possible without rendering anything. This is very useful for iterating over changes for bot development.
+- **Seed:** Set the random seed with `--seed <nnn>` to while debugging to ensure that each run is the same.
 
 ```sh
 cargo run -- bots/chaos.rasm bots/jojo.rasm --log-level=debug > debug.log 2>&1
@@ -144,9 +148,11 @@ MIT License. See [LICENSE](LICENSE) for details.
 Some resources used in botarena were created by others. This could be anything from graphics, fonts, audio files, etc.
 
 ### Fonts
+
 - [Retrauhaus](https://www.fontspace.com/retrahaus-font-f23785) by 538 Fonts
 
 ### Sound effects and audio files
+
 - [Kenny](https://www.kenney.nl) from the all-in-one package
 
 ---
