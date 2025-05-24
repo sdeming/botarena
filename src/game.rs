@@ -21,6 +21,7 @@ pub struct Game {
     pub current_turn: u32,
     pub current_cycle: u32,
     pub max_turns: u32,
+    pub seed: Option<u64>,  // Store the seed for deterministic operations
     time_accumulator: f32,
     cycle_duration: f32,
     game_over: bool,
@@ -144,11 +145,19 @@ impl Game {
             current_turn: 1,
             current_cycle: 0,
             max_turns,
+            seed,
             time_accumulator: 0.0,
             cycle_duration: 1.0 / config::CYCLES_PER_TURN as f32,
             game_over: false,
             winner: None,
         })
+    }
+
+    /// Place obstacles in the arena using the stored seed for deterministic placement
+    pub fn place_obstacles(&mut self) {
+        // For obstacle placement, use a derived seed to avoid affecting robot RNG sequences
+        let obstacle_seed = self.seed.map(|s| s.wrapping_mul(31).wrapping_add(12345));
+        self.arena.place_obstacles_with_seed(obstacle_seed);
     }
 
     /// Run the main game loop using the provided renderer
@@ -482,6 +491,7 @@ mod tests {
             current_turn: 1,
             current_cycle: 0,
             max_turns: 10,
+            seed: None,
             time_accumulator: 0.0,
             cycle_duration: 1.0,
             game_over: false,
@@ -515,6 +525,7 @@ mod tests {
             current_turn: 1,
             current_cycle: 0,
             max_turns: 10,
+            seed: None,
             time_accumulator: 0.0,
             cycle_duration: 1.0,
             game_over: false,
@@ -533,6 +544,7 @@ mod tests {
             current_turn: 1,
             current_cycle: 0,
             max_turns: 10,
+            seed: None,
             time_accumulator: 0.0,
             cycle_duration: 1.0,
             game_over: false,

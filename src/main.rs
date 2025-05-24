@@ -115,7 +115,7 @@ async fn main() {
     };
 
     if !args.no_obstacles {
-        game.arena.place_obstacles();
+        game.place_obstacles();
     }
 
     // Run the game loop - either simulate mode or with graphics
