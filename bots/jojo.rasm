@@ -3,7 +3,7 @@
 
 .const DRIVE_ID 1
 .const TURRET_ID 2
-.const DRIVE_SPEED 2.0
+.const DRIVE_SPEED 1.0
 .const FIRE_POWER 1.0
 .const ARRIVAL_THRESHOLD 0.1
 .const WEAVE_STATE_INDEX 0

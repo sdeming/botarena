@@ -134,7 +134,7 @@ impl InstructionProcessor for ComponentOperations {
                 }
             }
             Instruction::Drive(op) => {
-                let val = op.get_value(&robot.vm_state)?;
+                let normalized_speed = op.get_value(&robot.vm_state)?;
                 let selected_component = robot
                     .vm_state
                     .registers
@@ -146,41 +146,42 @@ impl InstructionProcessor for ComponentOperations {
                         robot.id,
                         robot.vm_state.turn,
                         robot.vm_state.cycle,
-                        "Drive instruction. Value: {}",
-                        val
+                        "Drive instruction. Normalized speed: {}",
+                        normalized_speed
                     );
 
-                    // When user inputs drive 1.0, we want the robot to move 1.0 GRID unit per TURN
-                    // A grid unit is config::UNIT_SIZE coordinate units (0.05)
-                    // So we convert grid units to coordinate units per cycle:
-                    // grid_units * UNIT_SIZE / CYCLES_PER_TURN = coordinate_units_per_cycle
-                    let units_per_cycle = val * config::DRIVE_VELOCITY_FACTOR;
+                    // Clamp the normalized speed to 0.0-1.0 range
+                    let clamped_normalized_speed = normalized_speed.clamp(
+                        -config::MAX_DRIVE_SPEED_NORMALIZED, 
+                        config::MAX_DRIVE_SPEED_NORMALIZED
+                    );
 
-                    // Clamp to a maximum (let's say max is ±5 grid units per turn, or ±0.25 coordinate units)
-                    let max_units_per_cycle =
-                        config::MAX_DRIVE_UNITS_PER_TURN * config::DRIVE_VELOCITY_FACTOR;
-                    let clamped_velocity =
-                        units_per_cycle.clamp(-max_units_per_cycle, max_units_per_cycle);
+                    // Scale normalized speed (0.0-1.0) to actual grid units per turn (0.0-5.0)
+                    let grid_units_per_turn = clamped_normalized_speed * config::MAX_DRIVE_UNITS_PER_TURN;
 
-                    if clamped_velocity != units_per_cycle {
+                    // Convert grid units per turn to coordinate units per cycle
+                    let units_per_cycle = grid_units_per_turn * config::DRIVE_VELOCITY_FACTOR;
+
+                    if clamped_normalized_speed != normalized_speed {
                         crate::debug_instructions!(
                             robot.id,
                             robot.vm_state.turn,
                             robot.vm_state.cycle,
-                            "Drive velocity clamped from {} to {} coordinate units per cycle",
-                            units_per_cycle,
-                            clamped_velocity
+                            "Drive speed clamped from {} to {} (normalized)",
+                            normalized_speed,
+                            clamped_normalized_speed
                         );
                     }
 
-                    robot.set_drive_velocity(clamped_velocity);
+                    robot.set_drive_velocity(units_per_cycle);
                     crate::debug_instructions!(
                         robot.id,
                         robot.vm_state.turn,
                         robot.vm_state.cycle,
-                        "Drive instruction set velocity to {} units per cycle ({} units per turn)",
+                        "Drive instruction set velocity to {} units per cycle ({} grid units per turn, normalized speed {})",
                         robot.drive.velocity,
-                        robot.drive.velocity * config::CYCLES_PER_TURN as f64 / config::UNIT_SIZE
+                        grid_units_per_turn,
+                        clamped_normalized_speed
                     );
 
                     // Update the velocity register to reflect the new target velocity
@@ -349,19 +350,21 @@ mod tests {
         // Select drive component first
         robot.vm_state.set_selected_component(1).unwrap();
 
-        // Test with a value within the allowed range
-        let drive_velocity = 0.5;
-        let expected_scaled_velocity = drive_velocity * config::DRIVE_VELOCITY_FACTOR;
-        let drive = Instruction::Drive(Operand::Value(drive_velocity));
+        // Test with a normalized speed within the allowed range (0.0-1.0)
+        let normalized_speed = 0.5; // 50% of max speed
+        let expected_grid_units_per_turn = normalized_speed * config::MAX_DRIVE_UNITS_PER_TURN; // 0.5 * 5.0 = 2.5
+        let expected_scaled_velocity = expected_grid_units_per_turn * config::DRIVE_VELOCITY_FACTOR;
+        let drive = Instruction::Drive(Operand::Value(normalized_speed));
         let result = processor.process(&mut robot, &[], &arena, &drive, &mut command_queue);
 
         assert!(result.is_ok());
         assert_eq!(robot.drive.velocity, expected_scaled_velocity);
 
-        // Test with a value exceeding the maximum
-        let excessive_velocity = config::MAX_DRIVE_UNITS_PER_TURN + 1.0;
-        let expected_max = config::MAX_DRIVE_UNITS_PER_TURN * config::DRIVE_VELOCITY_FACTOR; // This is now 5 * UNIT_SIZE / CYCLES_PER_TURN
-        let drive_excessive = Instruction::Drive(Operand::Value(excessive_velocity));
+        // Test with a value exceeding the maximum (should be clamped to 1.0)
+        let excessive_speed = 1.5; // 150% of max speed, should be clamped to 1.0
+        let expected_max_grid_units = config::MAX_DRIVE_UNITS_PER_TURN; // 5.0 grid units per turn
+        let expected_max_velocity = expected_max_grid_units * config::DRIVE_VELOCITY_FACTOR;
+        let drive_excessive = Instruction::Drive(Operand::Value(excessive_speed));
         let result = processor.process(
             &mut robot,
             &[],
@@ -372,14 +375,13 @@ mod tests {
 
         assert!(result.is_ok());
         // Verify that the value was clamped to max
-        assert_eq!(robot.drive.velocity, expected_max);
+        assert_eq!(robot.drive.velocity, expected_max_velocity);
 
-        // Test with a value lower than the minimum
-        let excessive_reverse_velocity = -1.0 * (config::MAX_DRIVE_UNITS_PER_TURN + 1.0);
-        let expected_min =
-            -1.0 * (config::MAX_DRIVE_UNITS_PER_TURN * config::DRIVE_VELOCITY_FACTOR);
-        let reverse_drive_excessive =
-            Instruction::Drive(Operand::Value(excessive_reverse_velocity));
+        // Test with a value lower than the minimum (should be clamped to -1.0)
+        let excessive_reverse_speed = -1.5; // -150% of max speed, should be clamped to -1.0
+        let expected_min_grid_units = -config::MAX_DRIVE_UNITS_PER_TURN; // -5.0 grid units per turn
+        let expected_min_velocity = expected_min_grid_units * config::DRIVE_VELOCITY_FACTOR;
+        let reverse_drive_excessive = Instruction::Drive(Operand::Value(excessive_reverse_speed));
         let result = processor.process(
             &mut robot,
             &[],
@@ -389,8 +391,8 @@ mod tests {
         );
 
         assert!(result.is_ok());
-        // Verify that the value was clamped to max
-        assert_eq!(robot.drive.velocity, expected_min);
+        // Verify that the value was clamped to min
+        assert_eq!(robot.drive.velocity, expected_min_velocity);
     }
 
     #[test]
@@ -457,9 +459,9 @@ mod tests {
         assert_eq!(result.unwrap_err(), VMFault::NoComponentSelected);
     }
 
-    #[test] // Make this a test function
+    #[test]
     fn test_drive_velocity_conversion() {
-        let mut robot = create_test_robot(); // Helper now creates robot, needs mut
+        let mut robot = create_test_robot();
         let mut command_queue = VecDeque::new();
         let arena = Arena::new();
         let processor = ComponentOperations::new();
@@ -467,19 +469,29 @@ mod tests {
         // Select drive component first
         robot.vm_state.set_selected_component(1).unwrap();
 
-        // Test with a value within the allowed range
-        let drive_velocity = 0.5;
-        let expected_scaled_velocity = drive_velocity * config::DRIVE_VELOCITY_FACTOR;
-        let drive = Instruction::Drive(Operand::Value(drive_velocity));
+        // Test with normalized speed 0.5 (50% of max)
+        let normalized_speed = 0.5;
+        let expected_grid_units_per_turn = normalized_speed * config::MAX_DRIVE_UNITS_PER_TURN; // 0.5 * 5.0 = 2.5
+        let expected_velocity = expected_grid_units_per_turn * config::DRIVE_VELOCITY_FACTOR;
+        let drive = Instruction::Drive(Operand::Value(normalized_speed));
         let result = processor.process(&mut robot, &[], &arena, &drive, &mut command_queue);
 
         assert!(result.is_ok());
-        assert_eq!(robot.drive.velocity, expected_scaled_velocity);
+        assert_eq!(robot.drive.velocity, expected_velocity);
 
-        // Test with a value exceeding the maximum
-        let excessive_velocity = config::MAX_DRIVE_UNITS_PER_TURN + 1.0;
-        let expected_max = config::MAX_DRIVE_UNITS_PER_TURN * config::DRIVE_VELOCITY_FACTOR; // This is now 5 * UNIT_SIZE / CYCLES_PER_TURN
-        let drive_excessive = Instruction::Drive(Operand::Value(excessive_velocity));
+        // Test with normalized speed 1.0 (100% of max)
+        let max_normalized_speed = 1.0;
+        let expected_max_grid_units = config::MAX_DRIVE_UNITS_PER_TURN; // 5.0 grid units per turn
+        let expected_max_velocity = expected_max_grid_units * config::DRIVE_VELOCITY_FACTOR;
+        let drive_max = Instruction::Drive(Operand::Value(max_normalized_speed));
+        let result = processor.process(&mut robot, &[], &arena, &drive_max, &mut command_queue);
+
+        assert!(result.is_ok());
+        assert_eq!(robot.drive.velocity, expected_max_velocity);
+
+        // Test with excessive normalized speed (should be clamped to 1.0)
+        let excessive_speed = 2.0;
+        let drive_excessive = Instruction::Drive(Operand::Value(excessive_speed));
         let result = processor.process(
             &mut robot,
             &[],
@@ -489,25 +501,7 @@ mod tests {
         );
 
         assert!(result.is_ok());
-        // Verify that the value was clamped to max
-        assert_eq!(robot.drive.velocity, expected_max);
-
-        // Test with a value lower than the minimum
-        let excessive_reverse_velocity = -1.0 * (config::MAX_DRIVE_UNITS_PER_TURN + 1.0);
-        let expected_min =
-            -1.0 * (config::MAX_DRIVE_UNITS_PER_TURN * config::DRIVE_VELOCITY_FACTOR);
-        let reverse_drive_excessive =
-            Instruction::Drive(Operand::Value(excessive_reverse_velocity));
-        let result = processor.process(
-            &mut robot,
-            &[],
-            &arena,
-            &reverse_drive_excessive,
-            &mut command_queue,
-        );
-
-        assert!(result.is_ok());
-        // Verify that the value was clamped to max
-        assert_eq!(robot.drive.velocity, expected_min);
+        // Should be clamped to max (same as 1.0 normalized speed)
+        assert_eq!(robot.drive.velocity, expected_max_velocity);
     }
 }

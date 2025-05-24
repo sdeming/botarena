@@ -134,8 +134,8 @@ An important concept in the VM is that each instruction has a specific "cycle co
 - **Basic Operations** (push, pop, mov, stack operations): 1 cycle
 - **Math Operations** (pow, sqrt, trigonometric functions): 2 cycles
 - **Component Operations**:
-  - `rotate`: 3 cycles
-  - `drive`: 2 cycles
+  - `rotate`: 2 cycles
+  - `drive`: 1 cycle
   - `fire`: 3 cycles
   - `scan`: 3 cycles
 - **Control Flow**:
@@ -158,7 +158,7 @@ Example:
 start:                ; Label
     mov @d0 0.0       ; Initialize @d0 to 0 (1 cycle)
     select 1          ; Select drive component (1 cycle)
-    drive MAX_SPEED   ; Set drive speed using constant (2 cycles)
+    drive MAX_SPEED   ; Set drive speed using constant (1 cycle) - max speed = 5 grid units/turn
     jmp start         ; Jump back to start (1 cycle)
 ```
 
@@ -484,10 +484,29 @@ flowchart LR
 |--------------------|-----------------------------------------|--------------------------|---------------|--------------------|------------------------------------------------------------------------------------|
 | `select <operand>` | Select component by ID                  | Component ID or register | 1             | None               | `@component` = component ID                                                        |
 | `deselect`         | Deselect current component              | None                     | 1             | None               | `@component` = 0                                                                   |
-| `rotate <operand>` | Request rotation for selected component | Angle delta (degrees)    | variable      | Any                | Component begins rotating (applies to selected component); cost is 1 cycle per 45° |
+| `rotate <operand>` | Request rotation for selected component | Angle delta (degrees)    | 2             | Any                | Component begins rotating (applies to selected component)                          |
 | `drive <operand>`  | Set drive velocity                      | Target velocity          | 1             | Drive (ID 1)       | Drive begins accelerating/decelerating                                             |
 | `fire <operand>`   | Fire ranged weapon                      | Power level (0.0-1.0)    | 3             | Turret (ID 2)      | Fires projectile                                                                   |
-| `scan`             | Scan for targets                        | None                     | 1             | Turret (ID 2)      | Updates `@target_distance` and `@target_angle`                                     |
+| `scan`             | Scan for targets                        | None                     | 3             | Turret (ID 2)      | Updates `@target_distance` and `@target_angle`                                     |
+
+### Drive Speed System
+
+The `drive` instruction uses a **normalized speed system** ranging from 0.0 to 1.0:
+
+- **0.0**: No movement (stopped)
+- **0.2**: 20% of max speed = 1.0 grid unit per turn
+- **0.5**: 50% of max speed = 2.5 grid units per turn  
+- **1.0**: 100% of max speed = 5.0 grid units per turn (25% of arena width)
+
+**Speed Examples:**
+```asm
+drive 0.0    ; Stop
+drive 0.2    ; Slow movement (1 grid unit/turn) 
+drive 0.5    ; Medium movement (2.5 grid units/turn)
+drive 1.0    ; Maximum movement (5 grid units/turn)
+```
+
+Since the arena is 20×20 grid units, a speed of 1.0 allows the robot to cross 25% of the arena in one turn. Speed values above 1.0 are automatically clamped to 1.0, and negative values work for reverse movement.
 
 ### Miscellaneous
 
@@ -537,8 +556,46 @@ The following constants are predefined and available to all robot programs:
 
 | Constant | Value | Description |
 |----------|-------|-------------|
-| `ARENA_WIDTH` | Width of arena | Total width of the arena grid (typically 20.0) |
-| `ARENA_HEIGHT` | Height of arena | Total height of the arena grid (typically 15.0) |
+| `ARENA_WIDTH` | 20.0 | Total width of the arena in grid units |
+| `ARENA_HEIGHT` | 20.0 | Total height of the arena in grid units |
+
+### Arena Coordinate System
+
+The Bot Arena uses a dual coordinate system that's important to understand:
+
+**Coordinate Units (0.0 → 1.0):**
+- The arena spans from 0.0 to 1.0 in both X and Y dimensions
+- Robot position registers (`@posx`, `@posy`) return values in this range
+- Internal physics calculations use coordinate units
+
+**Grid Units (0 → 20):**
+- The arena is divided into a 20×20 grid of tiles
+- Each grid unit represents 5% (0.05) of the arena's width and height
+- Constants `ARENA_WIDTH` and `ARENA_HEIGHT` are expressed in grid units
+- Movement speeds and distances are typically expressed in grid units
+
+**Conversion:**
+- 1 grid unit = 0.05 coordinate units
+- 20 grid units = 1.0 coordinate unit (full arena dimension)
+- Robot at position (10, 10) in grid units = (0.5, 0.5) in coordinate units (center)
+
+**Example:**
+```asm
+; Drive at 1 grid unit per turn (5% of arena width)
+drive 1.0
+
+; Current position in coordinate units (0.0-1.0 range)
+mov @d0 @posx    ; e.g., 0.25 = 25% across the arena
+mov @d1 @posy    ; e.g., 0.75 = 75% down the arena
+
+; Convert coordinate units to grid units for logic
+mul @d0 ARENA_WIDTH  ; @result = 0.25 * 20 = 5.0 (grid unit X)
+mov @d2 @result
+mul @d1 ARENA_HEIGHT ; @result = 0.75 * 20 = 15.0 (grid unit Y) 
+mov @d3 @result
+```
+
+The rendering system scales these coordinates to the actual pixel dimensions of the display, but this is transparent to the robot programs.
 
 ## Stack Operations
 
@@ -586,7 +643,7 @@ Before using any component-specific instruction, you must first select the appro
 
 ```asm
 select 1       ; Select the drive component
-drive 0.5      ; Set drive velocity to 0.5 units/cycle
+drive 0.5      ; Set drive velocity to 50% of max speed (2.5 grid units/turn)
 rotate 45.0    ; Begin rotating the drive 45 degrees
 
 select 2       ; Select the turret component
@@ -608,7 +665,7 @@ This program makes the robot move in a square pattern:
 select DRIVE_ID             ; Select drive component
 
 start:
-    drive 2.0               ; Move forward
+    drive 0.4               ; Move forward at 40% speed (2 grid units/turn)
     sleep DRIVE_DELAY       ; Wait DRIVE_DELAY cycles
     drive 0.0               ; Stop
     rotate 90.0             ; Turn 90 degrees
@@ -660,7 +717,7 @@ start:
         ; Move in the direction specified by @d5
         select DRIVE_ID
         rotate @d5
-        drive 0.5
+        drive 0.1            ; Move at 10% speed (0.5 grid units/turn)
         
         ; Wait for movement to complete
         sleep 10
@@ -924,7 +981,7 @@ main_loop:
 zigzag:
     push @d4
     select DRIVE_ID
-    drive 0.5
+    drive 0.1            ; Move at 10% speed (0.5 grid units/turn)
     push @d0
     push 180.0
     mul

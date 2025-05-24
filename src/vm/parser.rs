@@ -1044,7 +1044,7 @@ mod tests {
     fn test_constant_expression_with_predefined_constants() {
         let mut predefined = HashMap::new();
         predefined.insert("ARENA_WIDTH".to_string(), 20.0);
-        predefined.insert("ARENA_HEIGHT".to_string(), 15.0);
+        predefined.insert("ARENA_HEIGHT".to_string(), 20.0);
         predefined.insert("PI".to_string(), PI);
 
         let source = r#"
@@ -1069,12 +1069,12 @@ mod tests {
             _ => panic!("Expected Push instruction with value 10.0"),
         }
         match &program.instructions[1] {
-            Instruction::Push(Operand::Value(v)) => assert_eq!(*v, 7.5), // 15 / 2
-            _ => panic!("Expected Push instruction with value 7.5"),
+            Instruction::Push(Operand::Value(v)) => assert_eq!(*v, 10.0), // 20 / 2
+            _ => panic!("Expected Push instruction with value 10.0"),
         }
         match &program.instructions[2] {
-            Instruction::Push(Operand::Value(v)) => assert_eq!(*v, 300.0), // 20 * 15
-            _ => panic!("Expected Push instruction with value 300.0"),
+            Instruction::Push(Operand::Value(v)) => assert_eq!(*v, 400.0), // 20 * 20
+            _ => panic!("Expected Push instruction with value 400.0"),
         }
     }
 

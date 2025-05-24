@@ -941,7 +941,7 @@ mod tests {
         let program = parse_program(
             r#"
             select 1      ; select drive
-            drive 1.0     ; set velocity to 1.0 grid unit per turn
+            drive 0.2     ; set velocity to 0.2 normalized speed = 1.0 grid unit per turn
             rotate 0.0    ; set rotation to 0 degrees (east)
         "#,
         );
@@ -960,7 +960,8 @@ mod tests {
         // Explicitly set direction to 0 for this test, overriding center-facing default
         robot.drive.direction = 0.0;
 
-        // Expected velocity is 1.0 * UNIT_SIZE / CYCLES_PER_TURN coordinate units per cycle
+        // Expected velocity: 0.2 normalized speed * 5 grid units per turn = 1.0 grid unit per turn
+        // 1.0 grid unit per turn = 1.0 * UNIT_SIZE / CYCLES_PER_TURN coordinate units per cycle
         let expected_velocity = config::UNIT_SIZE / config::CYCLES_PER_TURN as f64;
 
         // Debug print
@@ -1049,7 +1050,7 @@ mod tests {
         // For the test, we'll check if the robot moved 1 grid unit (with a small tolerance)
         assert!(
             (distance_moved - config::UNIT_SIZE).abs() < 0.001,
-            "Robot should move {} coordinate units (1 grid unit) per turn with drive 1.0, but moved {} coordinate units",
+            "Robot should move {} coordinate units (1 grid unit) per turn with drive 0.2, but moved {} coordinate units",
             config::UNIT_SIZE,
             distance_moved
         );
@@ -1080,7 +1081,8 @@ mod tests {
         robot.vm_state.set_selected_component(1).unwrap();
 
         // Set velocity to 0.5 grid units per turn (using the Drive instruction directly)
-        let drive_instruction = Instruction::Drive(Operand::Value(0.5));
+        // In normalized system: 0.5 grid units = 0.1 normalized speed (0.5/5.0)
+        let drive_instruction = Instruction::Drive(Operand::Value(0.1));
         let processor = ComponentOperations::new();
         processor
             .process(
@@ -1092,7 +1094,8 @@ mod tests {
             )
             .unwrap();
 
-        // Expected velocity is 0.5 * UNIT_SIZE / CYCLES_PER_TURN coordinate units per cycle
+        // Expected velocity: 0.1 normalized speed * 5 grid units per turn = 0.5 grid units per turn
+        // 0.5 grid units per turn = 0.5 * UNIT_SIZE / CYCLES_PER_TURN coordinate units per cycle
         let expected_velocity = 0.5 * config::UNIT_SIZE / config::CYCLES_PER_TURN as f64;
 
         // Check if velocity was set correctly
@@ -1117,14 +1120,14 @@ mod tests {
         // Check that the robot moved ~0.025 coordinate units (0.5 grid units)
         let distance_moved = robot.position.x - start_x;
         println!(
-            "Fractional test: moved {} coordinate units ({} grid units) with drive 0.5",
+            "Fractional test: moved {} coordinate units ({} grid units) with drive 0.1",
             distance_moved,
             distance_moved / config::UNIT_SIZE
         );
 
         assert!(
             (distance_moved - 0.5 * config::UNIT_SIZE).abs() < 0.001,
-            "Robot should move {} coordinate units (0.5 grid units) per turn with drive 0.5, but moved {} coordinate units",
+            "Robot should move {} coordinate units (0.5 grid units) per turn with drive 0.1, but moved {} coordinate units",
             0.5 * config::UNIT_SIZE,
             distance_moved
         );
@@ -1144,7 +1147,7 @@ mod tests {
         let program = parse_program(
             r#"
             select 1         ; select drive
-            drive 0.5        ; set velocity
+            drive 0.1        ; set velocity (0.1 normalized = 0.5 grid units per turn)
             select 2         ; select turret
             rotate 45.0      ; set turret rotation
         "#,
@@ -1350,9 +1353,10 @@ mod tests {
         // We need the executor to process the instruction
         let executor = vm::executor::InstructionExecutor::new();
 
-        // --- Test setting velocity to 1.0 ---
-        let target_grid_velocity = 1.0;
-        let drive_instr = Instruction::Drive(Operand::Value(target_grid_velocity));
+        // --- Test setting velocity to 1.0 grid unit per turn (normalized speed 0.2) ---
+        let normalized_speed = 0.2; // 0.2 normalized = 1.0 grid unit per turn
+        let target_grid_velocity = normalized_speed * config::MAX_DRIVE_UNITS_PER_TURN; // 0.2 * 5.0 = 1.0
+        let drive_instr = Instruction::Drive(Operand::Value(normalized_speed));
 
         // Explicitly select the Drive component (ID 1) before executing
         robot
@@ -1360,10 +1364,10 @@ mod tests {
             .set_selected_component(1)
             .expect("Failed to select drive component");
 
-        // Execute the Drive(1.0) instruction
+        // Execute the Drive(0.2) instruction
         executor
             .execute_instruction(&mut robot, &[], &arena, &drive_instr, &mut command_queue)
-            .expect("Drive(1.0) instruction execution failed");
+            .expect("Drive(0.2) instruction execution failed");
 
         // Calculate the expected velocity in coordinate units per cycle
         let expected_coord_velocity_per_cycle =
