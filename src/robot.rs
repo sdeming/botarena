@@ -325,13 +325,6 @@ impl Robot {
         registers
             .set_internal(vm::registers::Register::BackwardDistance, backward_dist)
             .unwrap();
-        // Weapon related registers
-        registers
-            .set_internal(vm::registers::Register::WeaponPower, self.power)
-            .unwrap(); // Example: Use robot power
-        registers
-            .set_internal(vm::registers::Register::WeaponCooldown, 0.0)
-            .unwrap(); // Placeholder
     }
 
     /// Execute one simulation cycle's worth of VM instructions.
@@ -483,8 +476,6 @@ impl Robot {
             PosY,
             ForwardDistance,
             BackwardDistance,
-            WeaponPower,
-            WeaponCooldown,
             TargetDistance,
             TargetDirection,
         ];

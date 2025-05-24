@@ -316,7 +316,6 @@ mod tests {
             y: arena.height / 2.0,
         };
         let robot = Robot::new(0, "TestRobot".to_string(), Point { x: 0.0, y: 0.0 }, center);
-        // robot.vm_state.sp = 1024; // TODO: SP access needs update if required
         let command_queue = VecDeque::new();
         (robot, arena, command_queue)
     }
