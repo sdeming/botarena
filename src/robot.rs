@@ -6,8 +6,8 @@ use crate::vm;
 use crate::vm::instruction::Instruction;
 use crate::vm::parser;
 use crate::vm::state::VMState;
-use rand::prelude::*;
 use rand::RngCore;
+use rand::prelude::*;
 use std::collections::VecDeque;
 use std::f64::consts::PI;
 
@@ -92,7 +92,7 @@ impl std::fmt::Debug for Robot {
             .field("prev_turret_direction", &self.prev_turret_direction)
             .field("vm_state", &self.vm_state)
             .field("program", &self.program)
-            .field("rng", &"<RNG>")  // Can't debug RNG, so just show placeholder
+            .field("rng", &"<RNG>") // Can't debug RNG, so just show placeholder
             .field("aoi", &self.aoi)
             .finish()
     }
@@ -1303,7 +1303,13 @@ mod tests {
             x: arena.width / 2.0,
             y: arena.height / 2.0,
         };
-        let mut robot = Robot::new(0, "TestRobot".to_string(), Point { x: 0.5, y: 0.5 }, center, None);
+        let mut robot = Robot::new(
+            0,
+            "TestRobot".to_string(),
+            Point { x: 0.5, y: 0.5 },
+            center,
+            None,
+        );
         let mut command_queue = VecDeque::new();
 
         // Set up robot state

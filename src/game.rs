@@ -21,7 +21,7 @@ pub struct Game {
     pub current_turn: u32,
     pub current_cycle: u32,
     pub max_turns: u32,
-    pub seed: Option<u64>,  // Store the seed for deterministic operations
+    pub seed: Option<u64>, // Store the seed for deterministic operations
     time_accumulator: f32,
     cycle_duration: f32,
     game_over: bool,
@@ -352,12 +352,12 @@ impl Game {
             .filter(|r| r.status == RobotStatus::Destroyed)
             .map(|r| r.position)
             .collect();
-        
+
         // Add obstacles at destroyed robot positions
         for position in destroyed_robot_positions {
             self.arena.add_obstacle_at_position(position);
         }
-        
+
         // Remove destroyed robots from the robots vector
         self.robots.retain(|r| r.status != RobotStatus::Destroyed);
 
@@ -428,7 +428,7 @@ impl Game {
             // Run a full turn (all cycles)
             for _ in 0..config::CYCLES_PER_TURN {
                 self.update_simulation();
-                
+
                 // Break early if game ends mid-turn
                 if self.game_over {
                     break;
@@ -444,14 +444,25 @@ impl Game {
             .collect();
 
         match alive_robots.len() {
-            0 => info!("Simulation complete: DRAW - No survivors after {} turns", self.current_turn - 1),
+            0 => info!(
+                "Simulation complete: DRAW - No survivors after {} turns",
+                self.current_turn - 1
+            ),
             1 => {
                 let winner = alive_robots[0];
-                info!("Simulation complete: {} WINS with {:.2} health after {} turns", 
-                      winner.name, winner.health, self.current_turn - 1);
+                info!(
+                    "Simulation complete: {} WINS with {:.2} health after {} turns",
+                    winner.name,
+                    winner.health,
+                    self.current_turn - 1
+                );
             }
             _ => {
-                info!("Simulation complete: {} survivors after {} turns:", alive_robots.len(), self.current_turn - 1);
+                info!(
+                    "Simulation complete: {} survivors after {} turns:",
+                    alive_robots.len(),
+                    self.current_turn - 1
+                );
                 for robot in &alive_robots {
                     info!("  {} - Health: {:.2}", robot.name, robot.health);
                 }
@@ -473,7 +484,13 @@ mod tests {
     fn dummy_robot(id: u32, pos: Point, status: RobotStatus) -> Robot {
         // Use a default center for dummy robots in tests
         let center = Point { x: 0.5, y: 0.5 };
-        let mut robot = Robot::new(id, format!("TestRobot_{}", id).to_string(), pos, center, None);
+        let mut robot = Robot::new(
+            id,
+            format!("TestRobot_{}", id).to_string(),
+            pos,
+            center,
+            None,
+        );
         robot.status = status;
         robot
     }

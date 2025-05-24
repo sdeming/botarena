@@ -4,9 +4,9 @@ use crate::config::*;
 use crate::particles::ParticleSystem;
 use crate::robot::{Robot, RobotStatus};
 use crate::types::*;
+use ::rand::SeedableRng;
 use ::rand::prelude::*;
 use ::rand::rngs::StdRng;
-use ::rand::SeedableRng;
 use macroquad::prelude::*;
 use macroquad::prelude::{ORANGE, SKYBLUE, Vec2, YELLOW};
 
@@ -515,9 +515,21 @@ mod tests {
         let robot1_start = Point { x: 0.25, y: 0.5 };
         let robot2_start = Point { x: 0.75, y: 0.5 };
         let arena_center = Point { x: 0.5, y: 0.5 }; // Define center point
-        let mut robot1 = Robot::new(1, "TestRobot1".to_string(), robot1_start, arena_center, None);
+        let mut robot1 = Robot::new(
+            1,
+            "TestRobot1".to_string(),
+            robot1_start,
+            arena_center,
+            None,
+        );
         robot1.status = RobotStatus::Active; // Manually set active for test
-        let mut robot2 = Robot::new(2, "TestRobot2".to_string(), robot2_start, arena_center, None);
+        let mut robot2 = Robot::new(
+            2,
+            "TestRobot2".to_string(),
+            robot2_start,
+            arena_center,
+            None,
+        );
         robot2.status = RobotStatus::Active; // <-- Manually set status for test
         let mut particle_system = ParticleSystem::new(); // <-- Create dummy particle system
         let audio_manager = AudioManager::new(); // <-- Create dummy manager
@@ -608,7 +620,13 @@ mod tests {
         let mut arena = Arena::new();
         let robot1_start = Point { x: 0.5, y: 0.5 };
         let arena_center = Point { x: 0.5, y: 0.5 }; // Define center point
-        let mut robot1 = Robot::new(1, "TestRobot1".to_string(), robot1_start, arena_center, None);
+        let mut robot1 = Robot::new(
+            1,
+            "TestRobot1".to_string(),
+            robot1_start,
+            arena_center,
+            None,
+        );
         robot1.status = RobotStatus::Active; // Set active
         let mut particle_system = ParticleSystem::new(); // <-- Create dummy particle system
         let audio_manager = AudioManager::new(); // <-- Create dummy manager

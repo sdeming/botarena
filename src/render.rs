@@ -1291,12 +1291,12 @@ void main() {
             // --- Debug Register Value ---
             let dbg_val = robot.vm_state.registers.get(Register::Dbg).unwrap_or(0.0);
             let dbg_val_y = instr_val_y + row_v_spacing + 12.0; // Position below instruction
-            
+
             // Define params for debug value text (slightly different color)
             let dbg_params = TextParams {
-                font_size: 11,        // Even smaller font
+                font_size: 11,                               // Even smaller font
                 color: Color::from_rgba(180, 180, 180, 255), // Slightly dimmed
-                ..small_white_params  // Inherit font
+                ..small_white_params                         // Inherit font
             };
             let dbg_text = format!("@dbg: {:.1}", dbg_val);
             draw_text_ex(

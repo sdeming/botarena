@@ -152,12 +152,13 @@ impl InstructionProcessor for ComponentOperations {
 
                     // Clamp the normalized speed to 0.0-1.0 range
                     let clamped_normalized_speed = normalized_speed.clamp(
-                        -config::MAX_DRIVE_SPEED_NORMALIZED, 
-                        config::MAX_DRIVE_SPEED_NORMALIZED
+                        -config::MAX_DRIVE_SPEED_NORMALIZED,
+                        config::MAX_DRIVE_SPEED_NORMALIZED,
                     );
 
                     // Scale normalized speed (0.0-1.0) to actual grid units per turn (0.0-5.0)
-                    let grid_units_per_turn = clamped_normalized_speed * config::MAX_DRIVE_UNITS_PER_TURN;
+                    let grid_units_per_turn =
+                        clamped_normalized_speed * config::MAX_DRIVE_UNITS_PER_TURN;
 
                     // Convert grid units per turn to coordinate units per cycle
                     let units_per_cycle = grid_units_per_turn * config::DRIVE_VELOCITY_FACTOR;
@@ -227,7 +228,13 @@ mod tests {
             x: arena.width / 2.0,
             y: arena.height / 2.0,
         };
-        Robot::new(1, "TestRobot".to_string(), Point { x: 0.5, y: 0.5 }, center, None)
+        Robot::new(
+            1,
+            "TestRobot".to_string(),
+            Point { x: 0.5, y: 0.5 },
+            center,
+            None,
+        )
     }
 
     fn setup() -> (Robot, Arena, VecDeque<ArenaCommand>) {

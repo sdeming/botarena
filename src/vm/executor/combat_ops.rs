@@ -149,7 +149,13 @@ mod tests {
             x: arena.width / 2.0,
             y: arena.height / 2.0,
         };
-        let mut robot = Robot::new(1, "TestRobot".to_string(), Point { x: 0.5, y: 0.5 }, center, None);
+        let mut robot = Robot::new(
+            1,
+            "TestRobot".to_string(),
+            Point { x: 0.5, y: 0.5 },
+            center,
+            None,
+        );
 
         // Initialize some default state for testing
         robot.health = 100.0;
@@ -244,7 +250,7 @@ mod tests {
         let other_robot_pos = Point { x: 0.7, y: 0.5 };
         let mut other_robot = create_test_robot_at(other_robot_pos, 2);
         other_robot.status = RobotStatus::Active;
-        
+
         // Create a separate robot instance for the robots vector
         let robot_for_vec = create_test_robot();
         let all_robots = vec![robot_for_vec, other_robot];
@@ -294,7 +300,7 @@ mod tests {
         robot.vm_state.set_selected_component(2).unwrap();
         let arena = Arena::new();
         let mut command_queue = VecDeque::new();
-        
+
         // Create a separate robot instance for the robots vector
         let robot_for_vec = create_test_robot();
         let all_robots = vec![robot_for_vec];
@@ -337,7 +343,7 @@ mod tests {
         let other_robot_pos = Point { x: 0.7, y: 0.5 };
         let mut other_robot = create_test_robot_at(other_robot_pos, 2);
         other_robot.status = RobotStatus::Active;
-        
+
         // Create a separate robot instance for the robots vector
         let robot_for_vec = create_test_robot();
         let robots = vec![robot_for_vec, other_robot];
