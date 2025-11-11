@@ -1,0 +1,223 @@
+; bots/predator.rasm
+; Predator: Aggressive Hunter with Evasive Maneuvers
+; Strategy: Circle enemies while maintaining aggressive fire
+
+.const DRIVE_ID 1
+.const TURRET_ID 2
+.const DRIVE_SPEED 1.5
+.const FIRE_POWER 1.0
+.const OBSTACLE_THRESHOLD 0.15
+.const CLOSE_RANGE 0.3
+.const SWEEP_ANGLE 45.0
+.const CIRCLE_OFFSET 90.0
+
+; Memory indexes
+.const TURRET_SWEEP_DIR 0    ; 1 or -1
+.const ENEMY_DETECTED 1
+.const MOVE_COUNTER 2
+
+start:
+    ; Initialize memory
+    mov @index TURRET_SWEEP_DIR
+    sto 1.0                      ; Start sweeping right
+    mov @index ENEMY_DETECTED
+    sto 0.0
+    mov @index MOVE_COUNTER
+    sto 0.0
+
+    ; Set initial speed and random direction
+    push DRIVE_SPEED
+    call set_drive_speed
+    push @rand
+    mul @result 360.0
+    call set_drive_direction
+
+main_loop:
+    call aggressive_scan_and_fire
+    call evasive_movement
+    jmp main_loop
+
+; aggressive_scan_and_fire - Actively sweep turret and fire when enemy detected
+aggressive_scan_and_fire:
+    push @d1
+    push @d2
+
+    ; Scan for enemies
+    scan
+
+    ; Check if we found a target
+    cmp @target_distance 0.0
+    jnz asaf_target_found
+    jmp asaf_sweep_turret
+
+  asaf_target_found:
+    ; Mark that we detected an enemy
+    mov @index ENEMY_DETECTED
+    sto 1.0
+
+    ; Fire at the target
+    fire FIRE_POWER
+
+    ; If target is close, fire again!
+    cmp @target_distance CLOSE_RANGE
+    jl asaf_rapid_fire
+    jmp asaf_sweep_turret
+
+  asaf_rapid_fire:
+    fire FIRE_POWER
+    jmp asaf_sweep_turret
+
+  asaf_sweep_turret:
+    ; Always sweep turret to find/track enemies
+    ; Load sweep direction
+    mov @index TURRET_SWEEP_DIR
+    lod @d1
+
+    ; Apply sweep rotation to turret
+    mul @d1 SWEEP_ANGLE
+    push @component
+    select TURRET_ID
+    rotate @d1
+    pop @result
+    select @component
+
+    ; Randomly reverse sweep direction (10% chance)
+    cmp @rand 0.1
+    jl asaf_reverse_sweep
+    jmp asaf_ret
+
+  asaf_reverse_sweep:
+    mov @index TURRET_SWEEP_DIR
+    lod @d1
+    mul @d1 -1.0
+    mov @index TURRET_SWEEP_DIR
+    sto @d1
+
+  asaf_ret:
+    pop @d2
+    pop @d1
+    ret
+
+; evasive_movement - Move in circles/unpredictably to avoid fire
+evasive_movement:
+    push @d1
+    push @d2
+    push @d3
+
+    ; Increment move counter
+    mov @index MOVE_COUNTER
+    lod @d1
+    add @d1 1.0
+    mov @index MOVE_COUNTER
+    sto @d1
+
+    ; Check if obstacle ahead
+    cmp @forward_distance OBSTACLE_THRESHOLD
+    jl em_avoid_obstacle
+
+    ; Check if we detected an enemy recently
+    mov @index ENEMY_DETECTED
+    lod @d2
+    cmp @d2 0.0
+    jnz em_circle_enemy
+
+    ; No enemy - move in wandering pattern
+    jmp em_wander
+
+  em_circle_enemy:
+    ; Circle around the last known enemy position
+    ; Turn perpendicular to target direction (90 degrees offset)
+    cmp @target_distance 0.0
+    jz em_wander                 ; Lost the target, go back to wandering
+
+    ; Calculate perpendicular direction
+    ; If we're facing the target, turn 90 degrees
+    push @target_direction
+    push @drive_direction
+    sub @result @target_direction
+
+    ; Add 90 degree offset to circle
+    add @result CIRCLE_OFFSET
+
+    call set_drive_direction
+
+    ; Randomly change circle direction every ~20 cycles
+    mov @index MOVE_COUNTER
+    lod @d1
+    mod @d1 20.0
+    cmp @result 0.0
+    jnz em_keep_speed
+
+    ; Flip the circle direction
+    push @drive_direction
+    push 180.0
+    add
+    call set_drive_direction
+    jmp em_keep_speed
+
+  em_wander:
+    ; Reset enemy detected flag
+    mov @index ENEMY_DETECTED
+    sto 0.0
+
+    ; Random direction change every 30 cycles
+    mov @index MOVE_COUNTER
+    lod @d1
+    mod @d1 30.0
+    cmp @result 0.0
+    jnz em_keep_speed
+
+    ; Make a random turn (±90 degrees)
+    push @rand
+    mul @result 180.0
+    push 90.0
+    sub
+    call set_drive_direction
+    jmp em_keep_speed
+
+  em_avoid_obstacle:
+    ; Quick evasive turn when obstacle detected
+    cmp @rand 0.5
+    jl em_turn_left
+    jmp em_turn_right
+
+  em_turn_left:
+    push -120.0
+    call set_drive_direction
+    jmp em_keep_speed
+
+  em_turn_right:
+    push 120.0
+    call set_drive_direction
+    jmp em_keep_speed
+
+  em_keep_speed:
+    ; Maintain speed
+    push DRIVE_SPEED
+    call set_drive_speed
+
+  em_ret:
+    pop @d3
+    pop @d2
+    pop @d1
+    ret
+
+; Helper: set_drive_speed
+set_drive_speed:
+    pop @result
+    push @component
+    select DRIVE_ID
+    drive @result
+    pop @result
+    select @component
+    ret
+
+; Helper: set_drive_direction
+set_drive_direction:
+    pop @result
+    push @component
+    select DRIVE_ID
+    rotate @result
+    pop @result
+    select @component
+    ret
